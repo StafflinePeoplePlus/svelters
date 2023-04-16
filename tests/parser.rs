@@ -1,10 +1,10 @@
 use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
-    nodes::{Comment, CommentText, ConstTag, DebugTag, Mustache, Text},
+    nodes::{Comment, CommentText, ConstTag, DebugTag, Mustache, RawMustacheTag, Text},
     parser::{new_span, Parser},
     tokens::{
-        CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, MustacheCloseToken,
-        MustacheOpenToken, WhitespaceToken,
+        CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
+        MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
     },
 };
 use swc_ecma_ast::{Expr, Ident, Lit, Number};
@@ -197,6 +197,7 @@ fn mustache_debug_tag() {
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
 }
 
 #[test]
@@ -269,4 +270,36 @@ fn mustache_debug_all_tag() {
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn mustache_raw_tag() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{@html hello}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: RawMustacheTag {
+            html_tag: HtmlTagToken {
+                span: new_span(1, 6),
+            },
+            whitespace: WhitespaceToken {
+                span: new_span(6, 7),
+            },
+            expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(7, 12)))),
+            span: new_span(1, 12),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(12, 13),
+        }),
+        span: new_span(0, 13),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
 }

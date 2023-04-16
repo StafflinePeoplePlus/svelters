@@ -1,9 +1,9 @@
 use super::{fragment::FragmentState, State, StateTransition};
 use crate::{
     error::ParseErrorKind,
-    nodes::{ConstTag, DebugTag, Mustache, MustacheItem},
+    nodes::{ConstTag, DebugTag, Mustache, MustacheItem, RawMustacheTag},
     parser::Parser,
-    tokens::{ConstTagToken, DebugTagToken, MustacheCloseToken, MustacheOpenToken},
+    tokens::{ConstTagToken, DebugTagToken, HtmlTagToken, MustacheCloseToken, MustacheOpenToken},
 };
 use swc_common::{source_map::BytePos, Spanned};
 use swc_ecma_ast::{AssignOp, EsVersion, Expr};
@@ -22,7 +22,9 @@ impl StateTransition for MustacheState {
         };
         let leading_whitespace = parser.allow_whitespace();
 
-        let mustache_item = if let Some(span) = parser.eat_chars("@debug") {
+        let mustache_item = if let Some(span) = parser.eat_chars("@html") {
+            self.parse_raw_mustache_tag(parser, HtmlTagToken { span })
+        } else if let Some(span) = parser.eat_chars("@debug") {
             self.parse_debug_tag(parser, DebugTagToken { span })
         } else if let Some(span) = parser.eat_chars("@const") {
             self.parse_const_tag(parser, ConstTagToken { span })
@@ -158,5 +160,26 @@ impl MustacheState {
                 .into(),
             )
         }
+    }
+
+    fn parse_raw_mustache_tag(
+        self,
+        parser: &mut Parser<'_>,
+        html_tag: HtmlTagToken,
+    ) -> Option<MustacheItem> {
+        let whitespace =
+            parser.require_whitespace(ParseErrorKind::MissingWhitespaceAfterHtmlTag)?;
+        let expression = self.parse_js_expression(parser);
+
+        let span = html_tag.span().with_hi(expression.span_hi());
+        Some(
+            RawMustacheTag {
+                html_tag,
+                whitespace,
+                expression,
+                span,
+            }
+            .into(),
+        )
     }
 }

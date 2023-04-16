@@ -34,3 +34,8 @@ pub struct DebugTagToken {
 pub struct ConstTagToken {
     pub span: Span,
 }
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("HtmlTagToken")]
+pub struct HtmlTagToken {
+    pub span: Span,
+}

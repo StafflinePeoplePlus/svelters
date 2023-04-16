@@ -12,6 +12,7 @@ pub enum Node {
     Text(Text),
     CommentText(CommentText),
     MustacheItem(MustacheItem),
+    RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
 }
@@ -61,9 +62,18 @@ pub struct CommentText {
 #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
 #[serde(untagged)]
 pub enum MustacheItem {
+    RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
     Expression(Box<swc_ecma_ast::Expr>),
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("RawMustacheTag")]
+pub struct RawMustacheTag {
+    pub html_tag: HtmlTagToken,
+    pub whitespace: WhitespaceToken,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub span: Span,
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("DebugTag")]

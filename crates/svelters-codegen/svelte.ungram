@@ -25,7 +25,8 @@ Mustache =
   '}'?
 
 MustacheItem =
-  DebugTag
+  RawMustacheTag
+| DebugTag
 | ConstTag
 | 'expression'
 
@@ -36,5 +37,10 @@ DebugTag =
 
 ConstTag =
   '@const'
+  'whitespace'
+  'expression'
+
+RawMustacheTag =
+  '@html'
   'whitespace'
   'expression'
