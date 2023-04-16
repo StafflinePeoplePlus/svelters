@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/svelters-codegen"
+]
+
+[package]
+name = "svelters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+derive_more = "0.99"
+muncher = "0.7"
+serde = { version = "1", features = ["derive"] }
+swc_common = "0.31"
+swc_ecma_ast = { version = "0.103", features = ["serde-impl"] }
+swc_ecma_parser = { version = "0.133", features = ["debug"] }

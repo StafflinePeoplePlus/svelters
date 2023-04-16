@@ -1,0 +1,24 @@
+Fragment =
+  FragmentItem*
+
+FragmentItem =
+  Text
+| MustacheTag
+
+MustacheTag =
+  '{'
+  leading_: 'whitespace'?
+  expression: 'js_expression'
+  trailing_: 'whitespace'?
+  '}'?
+
+Text =
+  'text'
+
+Comment =
+  '<!--'
+  CommentText
+  '-->'?
+
+CommentText =
+  'text'

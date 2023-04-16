@@ -1,0 +1,14 @@
+[package]
+name = "svelters-codegen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.70"
+convert_case = "0.6.0"
+pluralizer = "0.4.0"
+proc-macro2 = "1.0.56"
+quote = "1.0.26"
+syn = "2.0.15"
+ungrammar = "1.16.1"
+xshell = "0.2.3"
