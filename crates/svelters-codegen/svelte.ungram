@@ -2,11 +2,19 @@ Fragment =
   FragmentItem*
 
 FragmentItem =
-  Text
+  Comment
 | Mustache
-| Comment
+| Text
 
 Text =
+  'text'
+
+Comment =
+  '<!--'
+  CommentText
+  '-->'?
+
+CommentText =
   'text'
 
 Mustache =
@@ -17,16 +25,14 @@ Mustache =
   '}'?
 
 MustacheItem =
-  ConstTag
+  DebugTag
+| ConstTag
 | 'expression'
 
-Comment =
-  '<!--'
-  CommentText
-  '-->'?
-
-CommentText =
-  'text'
+DebugTag =
+  '@debug'
+  'whitespace'?
+  identifier: 'expression'*
 
 ConstTag =
   '@const'

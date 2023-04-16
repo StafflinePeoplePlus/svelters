@@ -1,9 +1,9 @@
 use super::{fragment::FragmentState, State, StateTransition};
 use crate::{
     error::ParseErrorKind,
-    nodes::{ConstTag, Mustache, MustacheItem},
+    nodes::{ConstTag, DebugTag, Mustache, MustacheItem},
     parser::Parser,
-    tokens::{ConstTagToken, MustacheCloseToken, MustacheOpenToken},
+    tokens::{ConstTagToken, DebugTagToken, MustacheCloseToken, MustacheOpenToken},
 };
 use swc_common::{source_map::BytePos, Spanned};
 use swc_ecma_ast::{AssignOp, EsVersion, Expr};
@@ -22,7 +22,9 @@ impl StateTransition for MustacheState {
         };
         let leading_whitespace = parser.allow_whitespace();
 
-        let mustache_item = if let Some(span) = parser.eat_chars("@const") {
+        let mustache_item = if let Some(span) = parser.eat_chars("@debug") {
+            self.parse_debug_tag(parser, DebugTagToken { span })
+        } else if let Some(span) = parser.eat_chars("@const") {
             self.parse_const_tag(parser, ConstTagToken { span })
         } else {
             Some(self.parse_mustache_tag(parser))
@@ -101,5 +103,60 @@ impl MustacheState {
             }
             .into(),
         )
+    }
+
+    fn parse_debug_tag(
+        self,
+        parser: &mut Parser<'_>,
+        debug_tag: DebugTagToken,
+    ) -> Option<MustacheItem> {
+        let whitespace = parser.allow_whitespace();
+
+        let is_debug_all = matches!(parser.peek(), Some('}'));
+        if !is_debug_all && whitespace.is_none() {
+            return None;
+        }
+
+        if is_debug_all {
+            let span = match &whitespace {
+                Some(ws) => debug_tag.span().with_hi(ws.span_hi()),
+                None => debug_tag.span(),
+            };
+
+            Some(
+                DebugTag {
+                    debug_tag,
+                    whitespace,
+                    identifiers: Default::default(),
+                    span,
+                }
+                .into(),
+            )
+        } else {
+            let expression = self.parse_js_expression(parser);
+            let span = debug_tag.span().with_hi(expression.span_hi());
+
+            // We don't match here as we don't want to have to rebox the expression if its just one
+            let identifiers = if expression.is_seq() {
+                expression.expect_seq().exprs
+            } else {
+                vec![expression]
+            };
+            for expression in &identifiers {
+                if !matches!(&**expression, Expr::Ident(..)) {
+                    parser.error_with_span(ParseErrorKind::InvalidDebugArgs, expression.span());
+                }
+            }
+
+            Some(
+                DebugTag {
+                    debug_tag,
+                    whitespace,
+                    identifiers,
+                    span,
+                }
+                .into(),
+            )
+        }
     }
 }

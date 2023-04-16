@@ -4,11 +4,17 @@ use swc_common::{Span, Spanned};
 pub enum ParseErrorKind {
     MustacheNotClosed,
 
+    /// Missing whitespace after `{@debug`
+    MissingWhitespaceAfterDebugTag,
+
     /// Missing whitespace after `{@const`
     MissingWhitespaceAfterConstTag,
 
     /// Expression given to `{@const ...}` was not a simple assignment expression
     InvalidConstArgs,
+
+    /// One or more expressions given to `{@debug ...}` was not an identifier
+    InvalidDebugArgs,
 }
 
 #[derive(Debug, Clone, Copy, Spanned, PartialEq)]

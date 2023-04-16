@@ -31,7 +31,10 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn peek(&self) -> Option<&char> {
-        self.muncher.peek()
+        self.muncher.reset_peek();
+        let peek = self.muncher.peek();
+        self.muncher.reset_peek();
+        peek
     }
 
     pub(crate) fn push_node(&mut self, node: impl Into<Node>) {
@@ -61,10 +64,11 @@ impl<'a> Parser<'a> {
         let start = self.muncher.position();
         self.muncher.reset_peek();
 
+        let mut end = start;
         for c in s.chars() {
             match self.muncher.peek() {
                 Some(x) if x == &c => {
-                    self.muncher.eat();
+                    end += 1;
                 }
                 _ => {
                     self.muncher.reset_peek();
@@ -73,7 +77,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Some(new_span(start, self.muncher.position()))
+        self.eat_to(end);
+        Some(new_span(start, end))
     }
 
     pub(crate) fn eat_to(&mut self, position: usize) {
@@ -86,6 +91,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn allow_whitespace(&mut self) -> Option<WhitespaceToken> {
         if !self.muncher.peek()?.is_whitespace() {
+            self.muncher.reset_peek();
             return None;
         }
         let (start, end) = self.muncher.eat_until_count(|c| !c.is_ascii_whitespace());

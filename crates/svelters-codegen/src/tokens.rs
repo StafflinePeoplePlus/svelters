@@ -5,6 +5,7 @@ pub const TOKEN_NAMES: &[(&str, &str)] = &[
     ("<!--", "CommentStart"),
     ("-->", "CommentEnd"),
     ("@const", "ConstTag"),
+    ("@debug", "DebugTag"),
 ];
 pub const TOKEN_TYPES: &[(&str, &str)] = &[
     ("expression", "Box<swc_ecma_ast::Expr>"),

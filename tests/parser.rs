@@ -1,13 +1,13 @@
 use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
-    nodes::{Comment, CommentText, ConstTag, Mustache, Text},
+    nodes::{Comment, CommentText, ConstTag, DebugTag, Mustache, Text},
     parser::{new_span, Parser},
     tokens::{
-        CommentEndToken, CommentStartToken, ConstTagToken, MustacheCloseToken, MustacheOpenToken,
-        WhitespaceToken,
+        CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, MustacheCloseToken,
+        MustacheOpenToken, WhitespaceToken,
     },
 };
-use swc_ecma_ast::{Expr, Ident};
+use swc_ecma_ast::{Expr, Ident, Lit, Number};
 
 #[test]
 fn fragment() {
@@ -164,4 +164,109 @@ fn mustache_const_tag() {
             new_span(8, 13)
         )]
     );
+}
+
+#[test]
+fn mustache_debug_tag() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{@debug hello}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: DebugTag {
+            debug_tag: DebugTagToken {
+                span: new_span(1, 7),
+            },
+            whitespace: Some(WhitespaceToken {
+                span: new_span(7, 8),
+            }),
+            identifiers: vec![Box::new(Expr::Ident(Ident::new(
+                "hello".into(),
+                new_span(8, 13),
+            )))],
+            span: new_span(1, 13),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(13, 14),
+        }),
+        span: new_span(0, 14),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+}
+
+#[test]
+fn mustache_debug_tag_sequence() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{@debug hello, 123}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: DebugTag {
+            debug_tag: DebugTagToken {
+                span: new_span(1, 7),
+            },
+            whitespace: Some(WhitespaceToken {
+                span: new_span(7, 8),
+            }),
+            identifiers: vec![
+                Box::new(Expr::Ident(Ident::new("hello".into(), new_span(8, 13)))),
+                Box::new(Expr::Lit(Lit::Num(Number {
+                    span: new_span(15, 18),
+                    value: 123.0,
+                    raw: Some("123".into()),
+                }))),
+            ],
+            span: new_span(1, 18),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(18, 19),
+        }),
+        span: new_span(0, 19),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert_eq!(
+        error_reporter.parse_errors(),
+        &[ParseError::new(
+            ParseErrorKind::InvalidDebugArgs,
+            new_span(15, 18)
+        )]
+    );
+}
+
+#[test]
+fn mustache_debug_all_tag() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{@debug}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: DebugTag {
+            debug_tag: DebugTagToken {
+                span: new_span(1, 7),
+            },
+            whitespace: None,
+            identifiers: vec![],
+            span: new_span(1, 7),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(7, 8),
+        }),
+        span: new_span(0, 8),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
 }
