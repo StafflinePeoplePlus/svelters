@@ -8,7 +8,7 @@ impl StateTransition for FragmentState {
     fn next_state(self, parser: &mut Parser<'_>) -> State {
         match parser.peek() {
             Some('<') => TagState.into(),
-            Some('{') => MustacheState.into(),
+            Some('{') => MustacheState::default().into(),
             Some(_) => TextState.into(),
             None => State::Eof,
         }

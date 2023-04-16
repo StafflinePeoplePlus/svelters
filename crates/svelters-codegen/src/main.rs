@@ -19,10 +19,11 @@ fn main() -> anyhow::Result<()> {
         let (_, name) = TOKEN_NAMES
             .iter()
             .find(|(name, _)| *name == token_data.name)?;
+        let serde_name = format!("{name}Token");
         let name_ident = format_ident!("{name}Token");
         Some(quote! {
             #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-            #[ast_serde(#name)]
+            #[ast_serde(#serde_name)]
             pub struct #name_ident {
                 pub span: Span,
             }
@@ -32,44 +33,43 @@ fn main() -> anyhow::Result<()> {
         let node_data = &grammar[node_ref];
         let name = &node_data.name;
         let name_ident = format_ident!("{name}");
-        let mut fields = vec![];
-        match &node_data.rule {
-            Rule::Seq(rules) => {
-                for rule in rules {
-                    fields.push(get_simple_field(&grammar, rule, FieldMeta::default()))
+
+        let mut is_enum = false;
+        let fields = match &node_data.rule {
+            Rule::Alt(rules) => {
+                is_enum = true;
+                rules
+                    .iter()
+                    .map(|rule| get_simple_field(&grammar, rule, FieldMeta::default()))
+                    .collect()
+            }
+            Rule::Seq(rules) => rules
+                .iter()
+                .map(|rule| get_simple_field(&grammar, rule, FieldMeta::default()))
+                .collect(),
+            rule => {
+                vec![get_simple_field(&grammar, rule, FieldMeta::default())]
+            }
+        };
+
+        if is_enum {
+            let variants = fields.into_iter().map(|f| f.into_enum_variant());
+            quote! {
+                #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
+                #[serde(untagged)]
+                pub enum #name_ident {
+                    #(#variants,)*
                 }
             }
-            Rule::Alt(rules) => {
-                let variants = rules.iter().map(|rule| match rule {
-                    Rule::Labeled { .. } => todo!(),
-                    Rule::Node(n) => {
-                        let node_data = &grammar[*n];
-                        let ident = format_ident!("{}", node_data.name);
-                        quote! { #ident(#ident) }
-                    }
-                    Rule::Token(_) => todo!(),
-                    Rule::Seq(_) => todo!(),
-                    Rule::Alt(_) => todo!(),
-                    Rule::Opt(_) => todo!(),
-                    Rule::Rep(_) => todo!(),
-                });
-
-                return quote! {
-                    #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq)]
-                    #[serde(untagged)]
-                    pub enum #name_ident {
-                        #(#variants,)*
-                    }
-                };
-            }
-            rule => fields.push(get_simple_field(&grammar, rule, FieldMeta::default())),
-        }
-        quote! {
-            #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-            #[ast_serde(#name)]
-            pub struct #name_ident {
-                #(#fields,)*
-                pub span: Span,
+        } else {
+            let fields = fields.into_iter().map(|f| f.into_struct_field());
+            quote! {
+                #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+                #[ast_serde(#name)]
+                pub struct #name_ident {
+                    #(#fields,)*
+                    pub span: Span,
+                }
             }
         }
     });
@@ -162,7 +162,7 @@ fn project_root() -> PathBuf {
     res
 }
 
-fn get_token_field(grammar: &Grammar, t: &Token, meta: FieldMeta<'_>) -> TokenStream {
+fn get_token_field<'a>(grammar: &'a Grammar, t: &'a Token, meta: FieldMeta<'a>) -> Field<'a> {
     let token_data = &grammar[*t];
     let matched_type = TOKEN_TYPES
         .iter()
@@ -172,44 +172,65 @@ fn get_token_field(grammar: &Grammar, t: &Token, meta: FieldMeta<'_>) -> TokenSt
         .find(|(token_name, _)| *token_name == token_data.name);
 
     match (matched_type, matched_name) {
-        (Some((token_name, token_type)), _) => {
-            let token_type: Type = meta.parse_type(token_type);
-            let field_ident = meta.field_ident(token_name);
-            quote! {
-                pub #field_ident: #token_type
-            }
-        }
+        (Some((token_name, token_type)), _) => Field {
+            name: (*token_name).into(),
+            type_str: (*token_type).into(),
+            meta,
+        },
         (_, Some((_, token_type_name))) => {
             let token_name = token_type_name.to_case(Case::Snake);
-            let field_ident = meta.field_ident(&token_name);
-            let token_type: Type = meta.parse_type(&format!("{token_type_name}Token"));
-            quote! {
-                pub #field_ident: #token_type
+            Field {
+                name: token_name.into(),
+                type_str: format!("{token_type_name}Token").into(),
+                meta,
             }
         }
         _ => panic!("unable to match token to type or name: {}", token_data.name),
     }
 }
 
-fn get_node_field(grammar: &Grammar, n: &Node, meta: FieldMeta<'_>) -> TokenStream {
+fn get_node_field<'a>(grammar: &'a Grammar, n: &'a Node, meta: FieldMeta<'a>) -> Field<'a> {
     let node_data = &grammar[*n];
     let node_name = node_data.name.to_case(Case::Snake);
-    let field_ident = meta.field_ident(&node_name);
-    let field_type: Type = meta.parse_type(&node_data.name);
-    quote! {
-        pub #field_ident: #field_type
+    Field {
+        name: node_name.into(),
+        type_str: (&node_data.name).into(),
+        meta,
     }
 }
 
-fn get_simple_field(grammar: &Grammar, rule: &Rule, meta: FieldMeta<'_>) -> TokenStream {
+fn get_simple_field<'a>(grammar: &'a Grammar, rule: &'a Rule, meta: FieldMeta<'a>) -> Field<'a> {
     match rule {
         Rule::Labeled { label, rule } => get_simple_field(grammar, rule, meta.with_label(label)),
         Rule::Node(n) => get_node_field(grammar, n, meta),
         Rule::Token(t) => get_token_field(grammar, t, meta),
-        Rule::Seq(_) => todo!(),
-        Rule::Alt(_) => todo!(),
         Rule::Opt(rule) => get_simple_field(grammar, rule, meta.with_flag(FieldFlag::Optional)),
         Rule::Rep(rule) => get_simple_field(grammar, rule, meta.with_flag(FieldFlag::Repeated)),
+        Rule::Seq(_) => panic!("sequence rule not implemented for simple field"),
+        Rule::Alt(_) => panic!("alt rule not implemented for simple field"),
+    }
+}
+
+struct Field<'a> {
+    name: Cow<'a, str>,
+    type_str: Cow<'a, str>,
+    meta: FieldMeta<'a>,
+}
+impl<'a> Field<'a> {
+    fn into_struct_field(self) -> TokenStream {
+        let field_ident = self.meta.struct_field_ident(&self.name);
+        let field_type: Type = self.meta.parse_type(&self.type_str);
+        quote! {
+            pub #field_ident: #field_type
+        }
+    }
+
+    fn into_enum_variant(self) -> TokenStream {
+        let enum_ident = self.meta.enum_variant_ident(&self.name);
+        let field_type: Type = self.meta.parse_type(&self.type_str);
+        quote! {
+            #enum_ident(#field_type)
+        }
     }
 }
 
@@ -234,7 +255,7 @@ impl<'a> FieldMeta<'a> {
         self
     }
 
-    fn field_ident(&self, fallback_name: &str) -> Ident {
+    fn struct_field_ident(&self, fallback_name: &str) -> Ident {
         let mut name: Cow<str> = match self.label {
             Some(label) if label.ends_with('_') => format!("{label}{fallback_name}").into(),
             Some(label) => label.into(),
@@ -246,6 +267,20 @@ impl<'a> FieldMeta<'a> {
         }
 
         format_ident!("{name}")
+    }
+
+    fn enum_variant_ident(&self, fallback_name: &str) -> Ident {
+        let mut name: Cow<str> = match self.label {
+            Some(label) if label.ends_with('_') => format!("{label}{fallback_name}").into(),
+            Some(label) => label.into(),
+            None => fallback_name.into(),
+        };
+
+        if matches!(self.flag, Some(FieldFlag::Repeated)) {
+            name = pluralize(&name, 2, false).into();
+        }
+
+        format_ident!("{}", name.to_case(Case::Pascal))
     }
 
     fn parse_type(&self, type_str: &str) -> Type {

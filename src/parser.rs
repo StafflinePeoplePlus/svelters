@@ -1,4 +1,5 @@
 use crate::{
+    error::{ErrorReporter, ParseError, ParseErrorKind},
     nodes::Node,
     state::{State, StateTransition},
     tokens::WhitespaceToken,
@@ -9,13 +10,15 @@ use swc_common::{BytePos, Span};
 pub struct Parser<'a> {
     muncher: Muncher<'a>,
     nodes: Vec<Node>,
+    error_reporter: &'a mut dyn ErrorReporter,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str, error_reporter: &'a mut dyn ErrorReporter) -> Self {
         Self {
             muncher: Muncher::new(source),
-            nodes: Vec::new(),
+            nodes: Default::default(),
+            error_reporter,
         }
     }
 
@@ -91,6 +94,14 @@ impl<'a> Parser<'a> {
         })
     }
 
+    pub(crate) fn require_whitespace(&mut self, error: ParseErrorKind) -> Option<WhitespaceToken> {
+        let whitespace = self.allow_whitespace();
+        if whitespace.is_none() {
+            self.error(error)
+        }
+        whitespace
+    }
+
     pub(crate) fn eat_until<P>(&mut self, pred: P) -> Span
     where
         P: FnMut(&char) -> bool,
@@ -115,9 +126,15 @@ impl<'a> Parser<'a> {
     pub(crate) fn text_span(&self, span: &Span) -> &'a str {
         &self.muncher.text()[(span.lo.0 as usize)..(span.hi.0 as usize)]
     }
-    pub(crate) fn emit_error(&self, kind: ParseErrorKind) {
-        let pos = self.muncher.cursor_position();
-        eprintln!("Parser error at {pos:?}: {kind:?}");
+
+    pub(crate) fn error(&mut self, kind: ParseErrorKind) {
+        let pos = self.muncher.position();
+        self.error_with_span(kind, new_span(pos - 1, pos));
+    }
+
+    pub(crate) fn error_with_span(&mut self, kind: ParseErrorKind, span: Span) {
+        self.error_reporter
+            .report_parse_error(ParseError { kind, span });
     }
 
     pub(crate) fn span_from(&self, start: usize) -> Span {
@@ -131,9 +148,4 @@ pub fn new_span(start: usize, end: usize) -> Span {
         BytePos(end as u32),
         Default::default(),
     )
-}
-
-#[derive(Debug)]
-pub enum ParseErrorKind {
-    MustacheNotClosed,
 }

@@ -3,17 +3,22 @@ Fragment =
 
 FragmentItem =
   Text
-| MustacheTag
-
-MustacheTag =
-  '{'
-  leading_: 'whitespace'?
-  expression: 'js_expression'
-  trailing_: 'whitespace'?
-  '}'?
+| Mustache
+| Comment
 
 Text =
   'text'
+
+Mustache =
+  '{'
+  leading_: 'whitespace'?
+  MustacheItem
+  trailing_: 'whitespace'?
+  '}'?
+
+MustacheItem =
+  ConstTag
+| 'expression'
 
 Comment =
   '<!--'
@@ -22,3 +27,8 @@ Comment =
 
 CommentText =
   'text'
+
+ConstTag =
+  '@const'
+  'whitespace'
+  'expression'

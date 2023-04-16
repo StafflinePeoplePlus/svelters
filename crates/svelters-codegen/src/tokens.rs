@@ -4,8 +4,9 @@ pub const TOKEN_NAMES: &[(&str, &str)] = &[
     ("}", "MustacheClose"),
     ("<!--", "CommentStart"),
     ("-->", "CommentEnd"),
+    ("@const", "ConstTag"),
 ];
 pub const TOKEN_TYPES: &[(&str, &str)] = &[
-    ("js_expression", "Box<swc_ecma_ast::Expr>"),
+    ("expression", "Box<swc_ecma_ast::Expr>"),
     ("text", "String"),
 ];
