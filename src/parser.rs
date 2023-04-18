@@ -1,7 +1,7 @@
 use crate::{
     error::{ErrorReporter, ParseError, ParseErrorKind},
-    nodes::Node,
     state::{State, StateTransition},
+    syntax_nodes::Node,
     tokens::WhitespaceToken,
 };
 use muncher::Muncher;

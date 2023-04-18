@@ -9,6 +9,9 @@ FragmentItem =
 Text =
   'text'
 
+InvalidSyntax =
+  'text'
+
 Comment =
   '<!--'
   CommentText
@@ -25,10 +28,13 @@ Mustache =
   '}'?
 
 MustacheItem =
-  RawMustacheTag
+  IfBlockOpen
+| KeyBlockOpen
+| RawMustacheTag
 | DebugTag
 | ConstTag
 | 'expression'
+| InvalidSyntax
 
 DebugTag =
   '@debug'
@@ -42,5 +48,15 @@ ConstTag =
 
 RawMustacheTag =
   '@html'
+  'whitespace'
+  'expression'
+
+KeyBlockOpen =
+  '#key'
+  'whitespace'
+  'expression'
+
+IfBlockOpen =
+  '#if'
   'whitespace'
   'expression'

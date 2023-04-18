@@ -1,10 +1,13 @@
 use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
-    nodes::{Comment, CommentText, ConstTag, DebugTag, Mustache, RawMustacheTag, Text},
     parser::{new_span, Parser},
+    syntax_nodes::{
+        Comment, CommentText, ConstTag, DebugTag, IfBlockOpen, InvalidSyntax, KeyBlockOpen,
+        Mustache, RawMustacheTag, Text,
+    },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
-        MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
+        IfOpenToken, KeyOpenToken, MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
     },
 };
 use swc_ecma_ast::{Expr, Ident, Lit, Number};
@@ -298,6 +301,99 @@ fn mustache_raw_tag() {
             span: new_span(12, 13),
         }),
         span: new_span(0, 13),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn invalid_block_open() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#foo}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: InvalidSyntax {
+            text: "#foo".into(),
+            span: new_span(1, 5),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(5, 6),
+        }),
+        span: new_span(0, 6),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert_eq!(
+        error_reporter.parse_errors(),
+        &[ParseError::new(
+            ParseErrorKind::UnexpectedBlockType,
+            new_span(1, 5)
+        )]
+    );
+}
+
+#[test]
+fn key_block_open() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#key hello}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: KeyBlockOpen {
+            key_open: KeyOpenToken {
+                span: new_span(1, 5),
+            },
+            whitespace: WhitespaceToken {
+                span: new_span(5, 6),
+            },
+            expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(6, 11)))),
+            span: new_span(1, 11),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(11, 12),
+        }),
+        span: new_span(0, 12),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn if_block_open() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#if hello}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: MustacheOpenToken {
+            span: new_span(0, 1),
+        },
+        leading_whitespace: None,
+        mustache_item: IfBlockOpen {
+            if_open: IfOpenToken {
+                span: new_span(1, 4),
+            },
+            whitespace: WhitespaceToken {
+                span: new_span(4, 5),
+            },
+            expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(5, 10)))),
+            span: new_span(1, 10),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(MustacheCloseToken {
+            span: new_span(10, 11),
+        }),
+        span: new_span(0, 11),
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);

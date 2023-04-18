@@ -39,3 +39,13 @@ pub struct ConstTagToken {
 pub struct HtmlTagToken {
     pub span: Span,
 }
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("KeyOpenToken")]
+pub struct KeyOpenToken {
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("IfOpenToken")]
+pub struct IfOpenToken {
+    pub span: Span,
+}

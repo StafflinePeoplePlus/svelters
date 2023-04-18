@@ -13,11 +13,17 @@ pub enum ParseErrorKind {
     /// Missing whitespace after `{@html`
     MissingWhitespaceAfterHtmlTag,
 
+    /// Missing whitespace after `{#key`
+    MissingWhitespaceAfterKeyOpen,
+
     /// Expression given to `{@const ...}` was not a simple assignment expression
     InvalidConstArgs,
 
     /// One or more expressions given to `{@debug ...}` was not an identifier
     InvalidDebugArgs,
+
+    /// Unexpected block type
+    UnexpectedBlockType,
 }
 
 #[derive(Debug, Clone, Copy, Spanned, PartialEq)]

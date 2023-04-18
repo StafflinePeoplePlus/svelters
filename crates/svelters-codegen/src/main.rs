@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
         ),
     )?;
     std::fs::write(
-        project_root().join("src/generated/nodes.rs"),
+        project_root().join("src/generated/syntax_nodes.rs"),
         reformat(
             quote! {
                 use swc_common::{ast_serde, Span, Spanned, EqIgnoreSpan};
@@ -117,7 +117,7 @@ fn main() -> anyhow::Result<()> {
         project_root().join("src/generated.rs"),
         reformat(
             quote! {
-                pub mod nodes;
+                pub mod syntax_nodes;
                 pub mod tokens;
             }
             .to_string(),

@@ -1,11 +1,17 @@
 use super::{fragment::FragmentState, State, StateTransition};
 use crate::{
     error::ParseErrorKind,
-    nodes::{ConstTag, DebugTag, Mustache, MustacheItem, RawMustacheTag},
     parser::Parser,
-    tokens::{ConstTagToken, DebugTagToken, HtmlTagToken, MustacheCloseToken, MustacheOpenToken},
+    syntax_nodes::{
+        ConstTag, DebugTag, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem,
+        RawMustacheTag,
+    },
+    tokens::{
+        ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
+        MustacheOpenToken,
+    },
 };
-use swc_common::{source_map::BytePos, Spanned};
+use swc_common::{source_map::BytePos, Span, Spanned};
 use swc_ecma_ast::{AssignOp, EsVersion, Expr};
 use swc_ecma_parser::{lexer::Lexer, StringInput, Syntax, TsConfig};
 
@@ -22,19 +28,16 @@ impl StateTransition for MustacheState {
         };
         let leading_whitespace = parser.allow_whitespace();
 
-        let mustache_item = if let Some(span) = parser.eat_chars("@html") {
+        let mustache_item = if let Some(span) = parser.eat_char('#') {
+            self.parse_block_open_tag(parser, span)
+        } else if let Some(span) = parser.eat_chars("@html") {
             self.parse_raw_mustache_tag(parser, HtmlTagToken { span })
         } else if let Some(span) = parser.eat_chars("@debug") {
             self.parse_debug_tag(parser, DebugTagToken { span })
         } else if let Some(span) = parser.eat_chars("@const") {
             self.parse_const_tag(parser, ConstTagToken { span })
         } else {
-            Some(self.parse_mustache_tag(parser))
-        };
-        let Some(mustache_item) = mustache_item else {
-            // Some error trying to parse the mustache item, it should have been emitted, and so
-            // we'll try to keep parsing from here as best we can.
-            return FragmentState.into();
+            self.parse_mustache_tag(parser)
         };
 
         let trailing_whitespace = parser.allow_whitespace();
@@ -82,13 +85,10 @@ impl MustacheState {
         self.parse_js_expression(parser).into()
     }
 
-    fn parse_const_tag(
-        self,
-        parser: &mut Parser<'_>,
-        const_tag: ConstTagToken,
-    ) -> Option<MustacheItem> {
-        let whitespace =
-            parser.require_whitespace(ParseErrorKind::MissingWhitespaceAfterConstTag)?;
+    fn parse_const_tag(self, parser: &mut Parser<'_>, const_tag: ConstTagToken) -> MustacheItem {
+        let whitespace = parser
+            .require_whitespace(ParseErrorKind::MissingWhitespaceAfterConstTag)
+            .unwrap();
         let expression = self.parse_js_expression(parser);
 
         if !matches!(&*expression, Expr::Assign(expr) if expr.op == AssignOp::Assign) {
@@ -96,27 +96,21 @@ impl MustacheState {
         }
 
         let span = const_tag.span().with_hi(expression.span_hi());
-        Some(
-            ConstTag {
-                const_tag,
-                whitespace,
-                expression,
-                span,
-            }
-            .into(),
-        )
+        ConstTag {
+            const_tag,
+            whitespace,
+            expression,
+            span,
+        }
+        .into()
     }
 
-    fn parse_debug_tag(
-        self,
-        parser: &mut Parser<'_>,
-        debug_tag: DebugTagToken,
-    ) -> Option<MustacheItem> {
+    fn parse_debug_tag(self, parser: &mut Parser<'_>, debug_tag: DebugTagToken) -> MustacheItem {
         let whitespace = parser.allow_whitespace();
 
         let is_debug_all = matches!(parser.peek(), Some('}'));
         if !is_debug_all && whitespace.is_none() {
-            return None;
+            todo!()
         }
 
         if is_debug_all {
@@ -125,15 +119,13 @@ impl MustacheState {
                 None => debug_tag.span(),
             };
 
-            Some(
-                DebugTag {
-                    debug_tag,
-                    whitespace,
-                    identifiers: Default::default(),
-                    span,
-                }
-                .into(),
-            )
+            DebugTag {
+                debug_tag,
+                whitespace,
+                identifiers: Default::default(),
+                span,
+            }
+            .into()
         } else {
             let expression = self.parse_js_expression(parser);
             let span = debug_tag.span().with_hi(expression.span_hi());
@@ -150,15 +142,13 @@ impl MustacheState {
                 }
             }
 
-            Some(
-                DebugTag {
-                    debug_tag,
-                    whitespace,
-                    identifiers,
-                    span,
-                }
-                .into(),
-            )
+            DebugTag {
+                debug_tag,
+                whitespace,
+                identifiers,
+                span,
+            }
+            .into()
         }
     }
 
@@ -166,20 +156,61 @@ impl MustacheState {
         self,
         parser: &mut Parser<'_>,
         html_tag: HtmlTagToken,
-    ) -> Option<MustacheItem> {
-        let whitespace =
-            parser.require_whitespace(ParseErrorKind::MissingWhitespaceAfterHtmlTag)?;
+    ) -> MustacheItem {
+        let whitespace = parser
+            .require_whitespace(ParseErrorKind::MissingWhitespaceAfterHtmlTag)
+            .unwrap();
         let expression = self.parse_js_expression(parser);
 
         let span = html_tag.span().with_hi(expression.span_hi());
-        Some(
-            RawMustacheTag {
-                html_tag,
+        RawMustacheTag {
+            html_tag,
+            whitespace,
+            expression,
+            span,
+        }
+        .into()
+    }
+
+    fn parse_block_open_tag(self, parser: &mut Parser<'_>, hash_span: Span) -> MustacheItem {
+        if let Some(span) = parser.eat_chars("if") {
+            let span = span.with_lo(hash_span.lo());
+            let whitespace = parser
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterKeyOpen)
+                .unwrap();
+            let expression = self.parse_js_expression(parser);
+            IfBlockOpen {
+                if_open: IfOpenToken { span },
                 whitespace,
+                span: span.with_hi(expression.span_hi()),
                 expression,
+            }
+            .into()
+        } else if let Some(_span) = parser.eat_chars("each") {
+            todo!()
+        } else if let Some(_span) = parser.eat_chars("await") {
+            todo!()
+        } else if let Some(span) = parser.eat_chars("key") {
+            let span = span.with_lo(hash_span.lo());
+            let whitespace = parser
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterKeyOpen)
+                .unwrap();
+            let expression = self.parse_js_expression(parser);
+            KeyBlockOpen {
+                key_open: KeyOpenToken { span },
+                whitespace,
+                span: span.with_hi(expression.span_hi()),
+                expression,
+            }
+            .into()
+        } else {
+            let span = parser.eat_until_chars("}").with_lo(hash_span.lo());
+            parser.error_with_span(ParseErrorKind::UnexpectedBlockType, span);
+            InvalidSyntax {
+                text: parser.text_span(&span).to_string(),
                 span,
             }
-            .into(),
-        )
+            .into()
+        }
     }
 }

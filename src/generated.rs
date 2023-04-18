@@ -1,2 +1,2 @@
-pub mod nodes;
+pub mod syntax_nodes;
 pub mod tokens;

@@ -1,7 +1,7 @@
 use super::{State, StateTransition};
 use crate::{
-    nodes::{Comment, CommentText},
     parser::Parser,
+    syntax_nodes::{Comment, CommentText},
     tokens::{CommentEndToken, CommentStartToken},
 };
 

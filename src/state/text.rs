@@ -1,5 +1,5 @@
 use super::{State, StateTransition};
-use crate::{nodes::Text, parser::Parser, state::fragment::FragmentState};
+use crate::{parser::Parser, state::fragment::FragmentState, syntax_nodes::Text};
 
 #[derive(Debug)]
 pub struct TextState;
