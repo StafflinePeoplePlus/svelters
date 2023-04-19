@@ -529,3 +529,56 @@ fn each_block_open_keyed() {
     assert_eq!(nodes, vec![expected_node.into()]);
     assert!(error_reporter.is_empty())
 }
+
+#[test]
+fn each_block_open_index_keyed() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as item, i (i)}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: EachBlockOpen {
+            each_open: new_span(1, 6).into(),
+            whitespace: new_span(6, 7).into(),
+            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+            as_: EachAs {
+                leading_ws: new_span(12, 13).into(),
+                as_: new_span(13, 15).into(),
+                trailing_ws: new_span(15, 16).into(),
+                span: new_span(12, 16),
+            },
+            context: Identifier {
+                name: "item".into(),
+                span: new_span(16, 20),
+            }
+            .into(),
+            index: Some(EachIndex {
+                trailing_ws: None,
+                comma: new_span(20, 21).into(),
+                whitespace: Some(new_span(21, 22).into()),
+                identifier: Identifier {
+                    name: "i".into(),
+                    span: new_span(22, 23),
+                },
+                span: new_span(20, 23),
+            }),
+            key: Some(EachKey {
+                whitespace: Some(new_span(23, 24).into()),
+                paren_open: new_span(24, 25).into(),
+                leading_ws: None,
+                expression: Box::new(Ident::new("i".into(), new_span(25, 26)).into()),
+                trailing_ws: None,
+                paren_close: new_span(26, 27).into(),
+                span: new_span(23, 27),
+            }),
+            span: new_span(1, 27),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(27, 28).into()),
+        span: new_span(0, 28),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
