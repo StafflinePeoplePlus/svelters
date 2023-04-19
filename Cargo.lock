@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "svelters"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "derive_more",
  "muncher",

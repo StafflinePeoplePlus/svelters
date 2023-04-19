@@ -6,8 +6,15 @@ members = [
 
 [package]
 name = "svelters"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+authors = ["James Birtles <james@birtles.dev>"]
+description = "Svelte parser written in Rust with error recovery and handling in mind"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jamesbirtles/svelters"
+keywords = ["svelte", "compiler"]
+categories = ["parser-implementations"]
 
 [dependencies]
 derive_more = "0.99"
