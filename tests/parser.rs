@@ -3,15 +3,15 @@ use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
     parser::{new_span, Parser},
     syntax_nodes::{
-        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, Identifier,
-        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
+        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey,
+        Identifier, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
         IfOpenToken, KeyOpenToken, MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
     },
 };
-use swc_ecma_ast::{Expr, Ident, Lit, Number};
+use swc_ecma_ast::{Expr, Ident, Lit, MemberExpr, Number};
 
 #[test]
 fn fragment() {
@@ -476,6 +476,54 @@ fn each_block_open_index() {
         trailing_whitespace: None,
         mustache_close: Some(new_span(24, 25).into()),
         span: new_span(0, 25),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn each_block_open_keyed() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as item (item.id)}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: EachBlockOpen {
+            each_open: new_span(1, 6).into(),
+            whitespace: new_span(6, 7).into(),
+            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+            as_: EachAs {
+                leading_ws: new_span(12, 13).into(),
+                as_: new_span(13, 15).into(),
+                trailing_ws: new_span(15, 16).into(),
+                span: new_span(12, 16),
+            },
+            context: Identifier {
+                name: "item".into(),
+                span: new_span(16, 20),
+            }
+            .into(),
+            index: None,
+            key: Some(EachKey {
+                whitespace: Some(new_span(20, 21).into()),
+                paren_open: new_span(21, 22).into(),
+                leading_ws: None,
+                expression: Box::new(Expr::Member(MemberExpr {
+                    span: new_span(22, 29),
+                    obj: Box::new(Ident::new("item".into(), new_span(22, 26)).into()),
+                    prop: Ident::new("id".into(), new_span(27, 29)).into(),
+                })),
+                trailing_ws: None,
+                paren_close: new_span(29, 30).into(),
+                span: new_span(20, 30),
+            }),
+            span: new_span(1, 30),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(30, 31).into()),
+        span: new_span(0, 31),
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);
