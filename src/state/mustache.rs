@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, EachIndex, Identifier, IfBlockOpen,
-        InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, Identifier,
+        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -274,15 +274,31 @@ impl MustacheState {
         })
     }
 
-    fn parse_each_key(&self, parser: &mut Parser) -> Option<crate::syntax_nodes::EachKey> {
-        let _open_bracket = parser.eat_char('(')?;
+    fn parse_each_key(&self, parser: &mut Parser) -> Option<EachKey> {
+        let start = parser.position();
+        let whitespace = parser.allow_whitespace();
+        let paren_open = parser.eat_char('(')?.into();
+        let leading_ws = parser.allow_whitespace();
+        let expression = self.parse_js_expression(parser);
+        let trailing_ws = parser.allow_whitespace();
+        let paren_close = parser.eat_char(')').unwrap().into();
 
-        todo!("each key")
+        Some(EachKey {
+            whitespace,
+            paren_open,
+            leading_ws,
+            expression,
+            trailing_ws,
+            paren_close,
+            span: parser.span_from(start),
+        })
     }
 
     fn parse_identifier(&self, parser: &mut Parser) -> Identifier {
         let start = parser.position();
-        parser.eat();
+        let start_char = parser.eat().unwrap();
+        debug_assert!(Ident::is_valid_start(start_char));
+
         let span = parser
             .eat_until(|c| !Ident::is_valid_continue(*c))
             .with_lo(BytePos(start as u32));
