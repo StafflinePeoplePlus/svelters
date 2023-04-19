@@ -1,9 +1,10 @@
+use pretty_assertions::assert_eq;
 use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
     parser::{new_span, Parser},
     syntax_nodes::{
-        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, Identifier, IfBlockOpen,
-        InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
+        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, Identifier,
+        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
@@ -430,6 +431,51 @@ fn each_block_open() {
         trailing_whitespace: None,
         mustache_close: Some(new_span(20, 21).into()),
         span: new_span(0, 21),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn each_block_open_index() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as item, $i}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: EachBlockOpen {
+            each_open: new_span(1, 6).into(),
+            whitespace: new_span(6, 7).into(),
+            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+            as_: EachAs {
+                leading_ws: new_span(12, 13).into(),
+                as_: new_span(13, 15).into(),
+                trailing_ws: new_span(15, 16).into(),
+                span: new_span(12, 16),
+            },
+            context: Identifier {
+                name: "item".into(),
+                span: new_span(16, 20),
+            }
+            .into(),
+            index: Some(EachIndex {
+                trailing_ws: None,
+                comma: new_span(20, 21).into(),
+                whitespace: Some(new_span(21, 22).into()),
+                identifier: Identifier {
+                    name: "$i".into(),
+                    span: new_span(22, 24),
+                },
+                span: new_span(20, 24),
+            }),
+            key: None,
+            span: new_span(1, 24),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(24, 25).into()),
+        span: new_span(0, 25),
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);

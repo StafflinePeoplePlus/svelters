@@ -37,6 +37,13 @@ impl<'a> Parser<'a> {
         peek
     }
 
+    pub(crate) fn peek_ignore_whitespace(&self) -> Option<&char> {
+        let _ = self.muncher.peek_until(|c| !c.is_ascii_whitespace());
+        let peek = self.muncher.peek();
+        self.muncher.reset_peek();
+        peek
+    }
+
     pub(crate) fn push_node(&mut self, node: impl Into<Node>) {
         self.nodes.push(node.into())
     }

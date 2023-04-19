@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, Identifier, IfBlockOpen, InvalidSyntax,
-        KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, EachIndex, Identifier, IfBlockOpen,
+        InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -187,8 +187,8 @@ impl MustacheState {
             }
             .into()
         } else if let Some(each_span) = parser.eat_chars("each") {
-            let start = hash_span.lo();
-            let each_span = each_span.with_lo(start);
+            let start = hash_span.lo().0 as usize;
+            let each_span = each_span.with_lo(hash_span.lo());
             let whitespace = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
@@ -201,20 +201,16 @@ impl MustacheState {
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterAs)
                 .unwrap();
             let context: Context = if Ident::is_valid_start(*parser.peek().unwrap()) {
-                let start = parser.position();
-                parser.eat();
-                let span = parser
-                    .eat_until(|c| !Ident::is_valid_continue(*c))
-                    .with_lo(BytePos(start as u32));
-                Identifier {
-                    name: parser.text_span(&span).into(),
-                    span,
-                }
-                .into()
+                self.parse_identifier(parser).into()
             } else {
-                todo!()
+                todo!("destructuring")
             };
-            let end = BytePos(parser.position() as u32);
+
+            let (index, key) = match parser.peek_ignore_whitespace() {
+                Some(',') => (self.parse_each_index(parser), self.parse_each_key(parser)),
+                Some('(') => (None, self.parse_each_key(parser)),
+                _ => (None, None),
+            };
 
             EachBlockOpen {
                 each_open: each_span.into(),
@@ -227,9 +223,9 @@ impl MustacheState {
                     trailing_ws: as_trailing_ws,
                 },
                 context,
-                index: None,
-                key: None,
-                span: Span::new(start, end, Default::default()),
+                index,
+                key,
+                span: parser.span_from(start),
             }
             .into()
         } else if let Some(_span) = parser.eat_chars("await") {
@@ -255,6 +251,44 @@ impl MustacheState {
                 span,
             }
             .into()
+        }
+    }
+
+    fn parse_each_index(&self, parser: &mut Parser) -> Option<EachIndex> {
+        let start = parser.position();
+        let trailing_ws = parser.allow_whitespace();
+        let comma = parser.eat_char(',')?;
+        let whitespace = parser.allow_whitespace();
+        let identifier = if Ident::is_valid_start(*parser.peek().unwrap()) {
+            self.parse_identifier(parser)
+        } else {
+            todo!() // Throw some kind of parser error then attempt to recover.
+        };
+
+        Some(EachIndex {
+            trailing_ws,
+            comma: comma.into(),
+            whitespace,
+            identifier,
+            span: parser.span_from(start),
+        })
+    }
+
+    fn parse_each_key(&self, parser: &mut Parser) -> Option<crate::syntax_nodes::EachKey> {
+        let _open_bracket = parser.eat_char('(')?;
+
+        todo!("each key")
+    }
+
+    fn parse_identifier(&self, parser: &mut Parser) -> Identifier {
+        let start = parser.position();
+        parser.eat();
+        let span = parser
+            .eat_until(|c| !Ident::is_valid_continue(*c))
+            .with_lo(BytePos(start as u32));
+        Identifier {
+            name: parser.text_span(&span).into(),
+            span,
         }
     }
 }
