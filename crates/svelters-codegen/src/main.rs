@@ -27,6 +27,11 @@ fn main() -> anyhow::Result<()> {
             pub struct #name_ident {
                 pub span: Span,
             }
+            impl From<Span> for #name_ident {
+                fn from(span: Span) -> Self {
+                    Self { span }
+                }
+            }
         })
     });
     let node_structs = grammar.iter().map(|node_ref| {
@@ -257,7 +262,6 @@ impl<'a> FieldMeta<'a> {
 
     fn struct_field_ident(&self, fallback_name: &str) -> Ident {
         let mut name: Cow<str> = match self.label {
-            Some(label) if label.ends_with('_') => format!("{label}{fallback_name}").into(),
             Some(label) => label.into(),
             None => fallback_name.into(),
         };

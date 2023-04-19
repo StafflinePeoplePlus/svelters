@@ -14,10 +14,16 @@ pub enum Node {
     CommentText(CommentText),
     MustacheItem(MustacheItem),
     IfBlockOpen(IfBlockOpen),
+    EachBlockOpen(EachBlockOpen),
     KeyBlockOpen(KeyBlockOpen),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
+    EachAs(EachAs),
+    Context(Context),
+    EachIndex(EachIndex),
+    EachKey(EachKey),
+    Identifier(Identifier),
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("Fragment")]
@@ -72,6 +78,7 @@ pub struct CommentText {
 #[serde(untagged)]
 pub enum MustacheItem {
     IfBlockOpen(IfBlockOpen),
+    EachBlockOpen(EachBlockOpen),
     KeyBlockOpen(KeyBlockOpen),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
@@ -85,6 +92,18 @@ pub struct IfBlockOpen {
     pub if_open: IfOpenToken,
     pub whitespace: WhitespaceToken,
     pub expression: Box<swc_ecma_ast::Expr>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachBlockOpen")]
+pub struct EachBlockOpen {
+    pub each_open: EachOpenToken,
+    pub whitespace: WhitespaceToken,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub as_: EachAs,
+    pub context: Context,
+    pub index: Option<EachIndex>,
+    pub key: Option<EachKey>,
     pub span: Span,
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
@@ -117,5 +136,45 @@ pub struct ConstTag {
     pub const_tag: ConstTagToken,
     pub whitespace: WhitespaceToken,
     pub expression: Box<swc_ecma_ast::Expr>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachAs")]
+pub struct EachAs {
+    pub leading_ws: WhitespaceToken,
+    pub as_: AsToken,
+    pub trailing_ws: WhitespaceToken,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
+#[serde(untagged)]
+pub enum Context {
+    Identifier(Identifier),
+    Expression(Box<swc_ecma_ast::Expr>),
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachIndex")]
+pub struct EachIndex {
+    pub trailing_ws: Option<WhitespaceToken>,
+    pub comma: CommaToken,
+    pub whitespace: Option<WhitespaceToken>,
+    pub identifier: Identifier,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachKey")]
+pub struct EachKey {
+    pub whitespace: Option<WhitespaceToken>,
+    pub paren_open: ParenOpenToken,
+    pub leading_ws: Option<WhitespaceToken>,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub trailing_ws: Option<WhitespaceToken>,
+    pub paren_close: ParenCloseToken,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("Identifier")]
+pub struct Identifier {
+    pub name: String,
     pub span: Span,
 }

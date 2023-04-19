@@ -22,13 +22,14 @@ CommentText =
 
 Mustache =
   '{'
-  leading_: 'whitespace'?
+  leading_whitespace: 'whitespace'?
   MustacheItem
-  trailing_: 'whitespace'?
+  trailing_whitespace: 'whitespace'?
   '}'?
 
 MustacheItem =
   IfBlockOpen
+| EachBlockOpen
 | KeyBlockOpen
 | RawMustacheTag
 | DebugTag
@@ -60,3 +61,38 @@ IfBlockOpen =
   '#if'
   'whitespace'
   'expression'
+
+EachBlockOpen =
+  '#each'
+  'whitespace'
+  'expression'
+  as_: EachAs
+  Context
+  index: EachIndex?
+  key: EachKey?
+
+EachAs =
+  leading_ws: 'whitespace'
+  as_: 'as'
+  trailing_ws: 'whitespace'
+
+EachIndex =
+  trailing_ws: 'whitespace'?
+  ','
+  'whitespace'?
+  Identifier
+
+EachKey =
+  'whitespace'?
+  '('
+  leading_ws: 'whitespace'?
+  'expression'
+  trailing_ws: 'whitespace'?
+  ')'
+
+Context =
+  Identifier
+| 'expression'
+
+Identifier =
+  name: 'text'

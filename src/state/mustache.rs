@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        ConstTag, DebugTag, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem,
-        RawMustacheTag,
+        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, Identifier, IfBlockOpen, InvalidSyntax,
+        KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -12,8 +12,8 @@ use crate::{
     },
 };
 use swc_common::{source_map::BytePos, Span, Spanned};
-use swc_ecma_ast::{AssignOp, EsVersion, Expr};
-use swc_ecma_parser::{lexer::Lexer, StringInput, Syntax, TsConfig};
+use swc_ecma_ast::{AssignOp, EsVersion, Expr, Ident};
+use swc_ecma_parser::{lexer::Lexer, EsConfig, StringInput, Syntax};
 
 #[derive(Debug, Default)]
 pub struct MustacheState;
@@ -66,7 +66,7 @@ impl MustacheState {
     fn parse_js_expression(&self, parser: &mut Parser<'_>) -> Box<Expr> {
         let source = parser.text();
         let mut ecma_parser = swc_ecma_parser::Parser::new_from(Lexer::new(
-            Syntax::Typescript(TsConfig::default()),
+            Syntax::Es(EsConfig::default()),
             EsVersion::EsNext,
             StringInput::new(
                 &source[parser.position()..],
@@ -176,7 +176,7 @@ impl MustacheState {
         if let Some(span) = parser.eat_chars("if") {
             let span = span.with_lo(hash_span.lo());
             let whitespace = parser
-                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterKeyOpen)
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
             let expression = self.parse_js_expression(parser);
             IfBlockOpen {
@@ -186,14 +186,58 @@ impl MustacheState {
                 expression,
             }
             .into()
-        } else if let Some(_span) = parser.eat_chars("each") {
-            todo!()
+        } else if let Some(each_span) = parser.eat_chars("each") {
+            let start = hash_span.lo();
+            let each_span = each_span.with_lo(start);
+            let whitespace = parser
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
+                .unwrap();
+            let expression = self.parse_js_expression(parser);
+            let as_leading_ws = parser
+                .require_whitespace(ParseErrorKind::MissingWhitespaceBeforeAs)
+                .unwrap();
+            let as_ = parser.eat_chars("as").unwrap().into();
+            let as_trailing_ws = parser
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterAs)
+                .unwrap();
+            let context: Context = if Ident::is_valid_start(*parser.peek().unwrap()) {
+                let start = parser.position();
+                parser.eat();
+                let span = parser
+                    .eat_until(|c| !Ident::is_valid_continue(*c))
+                    .with_lo(BytePos(start as u32));
+                Identifier {
+                    name: parser.text_span(&span).into(),
+                    span,
+                }
+                .into()
+            } else {
+                todo!()
+            };
+            let end = BytePos(parser.position() as u32);
+
+            EachBlockOpen {
+                each_open: each_span.into(),
+                whitespace,
+                expression,
+                as_: EachAs {
+                    span: as_leading_ws.span().with_hi(as_trailing_ws.span_hi()),
+                    leading_ws: as_leading_ws,
+                    as_,
+                    trailing_ws: as_trailing_ws,
+                },
+                context,
+                index: None,
+                key: None,
+                span: Span::new(start, end, Default::default()),
+            }
+            .into()
         } else if let Some(_span) = parser.eat_chars("await") {
             todo!()
         } else if let Some(span) = parser.eat_chars("key") {
             let span = span.with_lo(hash_span.lo());
             let whitespace = parser
-                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterKeyOpen)
+                .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
             let expression = self.parse_js_expression(parser);
             KeyBlockOpen {

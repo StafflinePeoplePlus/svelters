@@ -13,8 +13,14 @@ pub enum ParseErrorKind {
     /// Missing whitespace after `{@html`
     MissingWhitespaceAfterHtmlTag,
 
-    /// Missing whitespace after `{#key`
-    MissingWhitespaceAfterKeyOpen,
+    /// Missing whitespace after `{#block`
+    MissingWhitespaceAfterBlockOpen,
+
+    /// Missing whitespace before `as` in each open
+    MissingWhitespaceBeforeAs,
+
+    /// Missing whitespace after `as` in each open
+    MissingWhitespaceAfterAs,
 
     /// Expression given to `{@const ...}` was not a simple assignment expression
     InvalidConstArgs,

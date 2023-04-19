@@ -2,8 +2,8 @@ use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
     parser::{new_span, Parser},
     syntax_nodes::{
-        Comment, CommentText, ConstTag, DebugTag, IfBlockOpen, InvalidSyntax, KeyBlockOpen,
-        Mustache, RawMustacheTag, Text,
+        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, Identifier, IfBlockOpen,
+        InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
@@ -394,6 +394,42 @@ fn if_block_open() {
             span: new_span(10, 11),
         }),
         span: new_span(0, 11),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn each_block_open() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as item}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: EachBlockOpen {
+            each_open: new_span(1, 6).into(),
+            whitespace: new_span(6, 7).into(),
+            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+            as_: EachAs {
+                leading_ws: new_span(12, 13).into(),
+                as_: new_span(13, 15).into(),
+                trailing_ws: new_span(15, 16).into(),
+                span: new_span(12, 16),
+            },
+            context: Identifier {
+                name: "item".into(),
+                span: new_span(16, 20),
+            }
+            .into(),
+            index: None,
+            key: None,
+            span: new_span(1, 20),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(20, 21).into()),
+        span: new_span(0, 21),
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);
