@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use svelters::{
+    ecma::{AssignPatProp, Expr, Ident, Lit, MemberExpr, Number, ObjectPat, Pat},
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
     parser::{new_span, Parser},
     syntax_nodes::{
@@ -11,7 +12,6 @@ use svelters::{
         IfOpenToken, KeyOpenToken, MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
     },
 };
-use swc_ecma_ast::{AssignPatProp, Expr, Ident, Lit, MemberExpr, Number, ObjectPat, Pat};
 
 #[test]
 fn fragment() {
