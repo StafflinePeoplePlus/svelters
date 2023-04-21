@@ -17,5 +17,7 @@ pub const TOKEN_NAMES: &[(&str, &str)] = &[
 ];
 pub const TOKEN_TYPES: &[(&str, &str)] = &[
     ("expression", "Box<swc_ecma_ast::Expr>"),
+    ("pattern", "swc_ecma_ast::Pat"),
+    ("identifier", "swc_ecma_ast::Ident"),
     ("text", "String"),
 ];

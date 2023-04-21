@@ -20,10 +20,8 @@ pub enum Node {
     DebugTag(DebugTag),
     ConstTag(ConstTag),
     EachAs(EachAs),
-    Context(Context),
     EachIndex(EachIndex),
     EachKey(EachKey),
-    Identifier(Identifier),
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("Fragment")]
@@ -101,7 +99,7 @@ pub struct EachBlockOpen {
     pub whitespace: WhitespaceToken,
     pub expression: Box<swc_ecma_ast::Expr>,
     pub as_: EachAs,
-    pub context: Context,
+    pub context: swc_ecma_ast::Pat,
     pub index: Option<EachIndex>,
     pub key: Option<EachKey>,
     pub span: Span,
@@ -146,19 +144,13 @@ pub struct EachAs {
     pub trailing_ws: WhitespaceToken,
     pub span: Span,
 }
-#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
-#[serde(untagged)]
-pub enum Context {
-    Identifier(Identifier),
-    Expression(Box<swc_ecma_ast::Expr>),
-}
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("EachIndex")]
 pub struct EachIndex {
     pub trailing_ws: Option<WhitespaceToken>,
     pub comma: CommaToken,
     pub whitespace: Option<WhitespaceToken>,
-    pub identifier: Identifier,
+    pub identifier: swc_ecma_ast::Ident,
     pub span: Span,
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
@@ -170,11 +162,5 @@ pub struct EachKey {
     pub expression: Box<swc_ecma_ast::Expr>,
     pub trailing_ws: Option<WhitespaceToken>,
     pub paren_close: ParenCloseToken,
-    pub span: Span,
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("Identifier")]
-pub struct Identifier {
-    pub name: String,
     pub span: Span,
 }

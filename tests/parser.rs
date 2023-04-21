@@ -4,14 +4,14 @@ use svelters::{
     parser::{new_span, Parser},
     syntax_nodes::{
         Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey,
-        Identifier, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
+        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
         IfOpenToken, KeyOpenToken, MustacheCloseToken, MustacheOpenToken, WhitespaceToken,
     },
 };
-use swc_ecma_ast::{Expr, Ident, Lit, MemberExpr, Number};
+use swc_ecma_ast::{AssignPatProp, Expr, Ident, Lit, MemberExpr, Number, ObjectPat, Pat};
 
 #[test]
 fn fragment() {
@@ -418,11 +418,7 @@ fn each_block_open() {
                 trailing_ws: new_span(15, 16).into(),
                 span: new_span(12, 16),
             },
-            context: Identifier {
-                name: "item".into(),
-                span: new_span(16, 20),
-            }
-            .into(),
+            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
             index: None,
             key: None,
             span: new_span(1, 20),
@@ -454,19 +450,12 @@ fn each_block_open_index() {
                 trailing_ws: new_span(15, 16).into(),
                 span: new_span(12, 16),
             },
-            context: Identifier {
-                name: "item".into(),
-                span: new_span(16, 20),
-            }
-            .into(),
+            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
             index: Some(EachIndex {
                 trailing_ws: None,
                 comma: new_span(20, 21).into(),
                 whitespace: Some(new_span(21, 22).into()),
-                identifier: Identifier {
-                    name: "$i".into(),
-                    span: new_span(22, 24),
-                },
+                identifier: Ident::new("$i".into(), new_span(22, 24)),
                 span: new_span(20, 24),
             }),
             key: None,
@@ -499,11 +488,7 @@ fn each_block_open_keyed() {
                 trailing_ws: new_span(15, 16).into(),
                 span: new_span(12, 16),
             },
-            context: Identifier {
-                name: "item".into(),
-                span: new_span(16, 20),
-            }
-            .into(),
+            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
             index: None,
             key: Some(EachKey {
                 whitespace: Some(new_span(20, 21).into()),
@@ -547,19 +532,12 @@ fn each_block_open_index_keyed() {
                 trailing_ws: new_span(15, 16).into(),
                 span: new_span(12, 16),
             },
-            context: Identifier {
-                name: "item".into(),
-                span: new_span(16, 20),
-            }
-            .into(),
+            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
             index: Some(EachIndex {
                 trailing_ws: None,
                 comma: new_span(20, 21).into(),
                 whitespace: Some(new_span(21, 22).into()),
-                identifier: Identifier {
-                    name: "i".into(),
-                    span: new_span(22, 23),
-                },
+                identifier: Ident::new("i".into(), new_span(22, 23)),
                 span: new_span(20, 23),
             }),
             key: Some(EachKey {
@@ -577,6 +555,49 @@ fn each_block_open_index_keyed() {
         trailing_whitespace: None,
         mustache_close: Some(new_span(27, 28).into()),
         span: new_span(0, 28),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn each_block_destructure() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as { id }}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: EachBlockOpen {
+            each_open: new_span(1, 6).into(),
+            whitespace: new_span(6, 7).into(),
+            expression: Box::new(Ident::new("items".into(), new_span(7, 12)).into()),
+            as_: EachAs {
+                leading_ws: new_span(12, 13).into(),
+                as_: new_span(13, 15).into(),
+                trailing_ws: new_span(15, 16).into(),
+                span: new_span(12, 16),
+            },
+            context: ObjectPat {
+                span: new_span(16, 22),
+                props: vec![AssignPatProp {
+                    span: new_span(18, 20),
+                    key: Ident::new("id".into(), new_span(18, 20)),
+                    value: None,
+                }
+                .into()],
+                optional: false,
+                type_ann: None,
+            }
+            .into(),
+            index: None,
+            key: None,
+            span: new_span(1, 22),
+        }
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(22, 23).into()),
+        span: new_span(0, 23),
     };
 
     assert_eq!(nodes, vec![expected_node.into()]);

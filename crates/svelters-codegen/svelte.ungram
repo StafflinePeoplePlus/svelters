@@ -67,7 +67,7 @@ EachBlockOpen =
   'whitespace'
   'expression'
   as_: EachAs
-  Context
+  context: 'pattern'
   index: EachIndex?
   key: EachKey?
 
@@ -80,7 +80,7 @@ EachIndex =
   trailing_ws: 'whitespace'?
   ','
   'whitespace'?
-  Identifier
+  'identifier'
 
 EachKey =
   'whitespace'?
@@ -90,9 +90,3 @@ EachKey =
   trailing_ws: 'whitespace'?
   ')'
 
-Context =
-  Identifier
-| 'expression'
-
-Identifier =
-  name: 'text'

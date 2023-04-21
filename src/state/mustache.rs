@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        ConstTag, Context, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, Identifier,
-        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, IfBlockOpen, InvalidSyntax,
+        KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -12,7 +12,7 @@ use crate::{
     },
 };
 use swc_common::{source_map::BytePos, Span, Spanned};
-use swc_ecma_ast::{AssignOp, EsVersion, Expr, Ident};
+use swc_ecma_ast::{AssignOp, EsVersion, Expr, Ident, Pat};
 use swc_ecma_parser::{lexer::Lexer, EsConfig, StringInput, Syntax};
 
 #[derive(Debug, Default)]
@@ -79,6 +79,24 @@ impl MustacheState {
         let expression = ecma_parser.parse_expr().unwrap();
         parser.eat_to(expression.span_hi().0 as usize);
         expression
+    }
+
+    fn parse_js_pattern(&self, parser: &mut Parser) -> Pat {
+        let source = parser.text();
+        let mut ecma_parser = swc_ecma_parser::Parser::new_from(Lexer::new(
+            Syntax::Es(EsConfig::default()),
+            EsVersion::EsNext,
+            StringInput::new(
+                &source[parser.position()..],
+                BytePos(parser.position() as u32),
+                BytePos(source.len() as u32),
+            ),
+            None,
+        ));
+
+        let pat = ecma_parser.parse_pat().unwrap();
+        parser.eat_to(pat.span_hi().0 as usize);
+        pat
     }
 
     fn parse_mustache_tag(self, parser: &mut Parser<'_>) -> MustacheItem {
@@ -200,11 +218,7 @@ impl MustacheState {
             let as_trailing_ws = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterAs)
                 .unwrap();
-            let context: Context = if Ident::is_valid_start(*parser.peek().unwrap()) {
-                self.parse_identifier(parser).into()
-            } else {
-                todo!("destructuring")
-            };
+            let context = self.parse_js_pattern(parser);
 
             let (index, key) = match parser.peek_ignore_whitespace() {
                 Some(',') => (self.parse_each_index(parser), self.parse_each_key(parser)),
@@ -294,7 +308,7 @@ impl MustacheState {
         })
     }
 
-    fn parse_identifier(&self, parser: &mut Parser) -> Identifier {
+    fn parse_identifier(&self, parser: &mut Parser) -> Ident {
         let start = parser.position();
         let start_char = parser.eat().unwrap();
         debug_assert!(Ident::is_valid_start(start_char));
@@ -302,9 +316,6 @@ impl MustacheState {
         let span = parser
             .eat_until(|c| !Ident::is_valid_continue(*c))
             .with_lo(BytePos(start as u32));
-        Identifier {
-            name: parser.text_span(&span).into(),
-            span,
-        }
+        Ident::new(parser.text_span(&span).into(), span)
     }
 }
