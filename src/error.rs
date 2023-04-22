@@ -33,6 +33,9 @@ pub enum ParseErrorKind {
 
     /// Unexpected block type
     UnexpectedBlockType,
+
+    /// Expected a valid index identifier
+    ExpectedEachIndex,
 }
 
 #[derive(Debug, Clone, Copy, Spanned, PartialEq)]

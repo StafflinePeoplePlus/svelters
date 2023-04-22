@@ -277,19 +277,21 @@ impl MustacheState {
         let trailing_ws = parser.allow_whitespace();
         let comma = parser.eat_char(',')?;
         let whitespace = parser.allow_whitespace();
-        let identifier = if Ident::is_valid_start(*parser.peek().unwrap()) {
-            self.parse_identifier(parser)
-        } else {
-            todo!() // Throw some kind of parser error then attempt to recover.
-        };
+        if Ident::is_valid_start(*parser.peek().unwrap()) {
+            let identifier = self.parse_identifier(parser);
 
-        Some(EachIndex {
-            trailing_ws,
-            comma: comma.into(),
-            whitespace,
-            identifier,
-            span: parser.span_from(start),
-        })
+            Some(EachIndex {
+                trailing_ws,
+                comma: comma.into(),
+                whitespace,
+                identifier,
+                span: parser.span_from(start),
+            })
+        } else {
+            let span = parser.eat_until(|c| c.is_whitespace());
+            parser.error_with_span(ParseErrorKind::ExpectedEachIndex, span);
+            None
+        }
     }
 
     fn parse_each_key(&self, parser: &mut Parser) -> Option<EachKey> {

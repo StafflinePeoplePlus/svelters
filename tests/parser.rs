@@ -577,6 +577,54 @@ fn each_block_open_index_keyed() {
 }
 
 #[test]
+fn each_block_open_invalid_index() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{#each items as item, 123 (i)}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
+                index: None,
+                key: Some(EachKey {
+                    whitespace: Some(new_span(25, 26).into()),
+                    paren_open: new_span(26, 27).into(),
+                    leading_ws: None,
+                    expression: Box::new(Ident::new("i".into(), new_span(27, 28)).into()),
+                    trailing_ws: None,
+                    paren_close: new_span(28, 29).into(),
+                    span: new_span(25, 29),
+                }),
+                span: new_span(1, 29),
+            }
+            .into(),
+        ),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(29, 30).into()),
+        span: new_span(0, 30),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert_eq!(
+        error_reporter.parse_errors(),
+        &[ParseError::new(
+            ParseErrorKind::ExpectedEachIndex,
+            new_span(22, 25)
+        )]
+    );
+}
+
+#[test]
 fn each_block_destructure() {
     let mut error_reporter = CollectingErrorReporter::new();
     let nodes = Parser::new("{#each items as { id }}", &mut error_reporter).parse();
