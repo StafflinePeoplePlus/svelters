@@ -1,11 +1,3 @@
-Fragment =
-  FragmentItem*
-
-FragmentItem =
-  Comment
-| Mustache
-| Text
-
 Text =
   'text'
 
@@ -28,9 +20,7 @@ Mustache =
   '}'?
 
 MustacheItem =
-  IfBlockOpen
-| EachBlockOpen
-| KeyBlockOpen
+  BlockOpen
 | BlockClose
 | RawMustacheTag
 | DebugTag
@@ -52,6 +42,12 @@ RawMustacheTag =
   '@html'
   'whitespace'
   'expression'
+
+BlockOpen =
+  IfBlockOpen
+| EachBlockOpen
+| KeyBlockOpen
+| unknown: InvalidSyntax
 
 KeyBlockOpen =
   '#key'

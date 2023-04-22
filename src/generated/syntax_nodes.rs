@@ -5,55 +5,23 @@ use swc_common::{ast_serde, EqIgnoreSpan, Span, Spanned};
 #[derive(Debug, From, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq)]
 #[serde(untagged)]
 pub enum Node {
-    Fragment(Fragment),
-    FragmentItem(FragmentItem),
-    Comment(Comment),
-    Mustache(Mustache),
     Text(Text),
     InvalidSyntax(InvalidSyntax),
+    Comment(Comment),
     CommentText(CommentText),
+    Mustache(Mustache),
     MustacheItem(MustacheItem),
-    IfBlockOpen(IfBlockOpen),
-    EachBlockOpen(EachBlockOpen),
-    KeyBlockOpen(KeyBlockOpen),
+    BlockOpen(BlockOpen),
     BlockClose(BlockClose),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
+    IfBlockOpen(IfBlockOpen),
+    EachBlockOpen(EachBlockOpen),
+    KeyBlockOpen(KeyBlockOpen),
     EachAs(EachAs),
     EachIndex(EachIndex),
     EachKey(EachKey),
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("Fragment")]
-pub struct Fragment {
-    pub fragment_items: Vec<FragmentItem>,
-    pub span: Span,
-}
-#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
-#[serde(untagged)]
-pub enum FragmentItem {
-    Comment(Comment),
-    Mustache(Mustache),
-    Text(Text),
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("Comment")]
-pub struct Comment {
-    pub comment_start: CommentStartToken,
-    pub comment_text: CommentText,
-    pub comment_end: Option<CommentEndToken>,
-    pub span: Span,
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("Mustache")]
-pub struct Mustache {
-    pub mustache_open: MustacheOpenToken,
-    pub leading_whitespace: Option<WhitespaceToken>,
-    pub mustache_item: MustacheItem,
-    pub trailing_whitespace: Option<WhitespaceToken>,
-    pub mustache_close: Option<MustacheCloseToken>,
-    pub span: Span,
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("Text")]
@@ -68,17 +36,33 @@ pub struct InvalidSyntax {
     pub span: Span,
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("Comment")]
+pub struct Comment {
+    pub comment_start: CommentStartToken,
+    pub comment_text: CommentText,
+    pub comment_end: Option<CommentEndToken>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("CommentText")]
 pub struct CommentText {
     pub text: String,
     pub span: Span,
 }
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("Mustache")]
+pub struct Mustache {
+    pub mustache_open: MustacheOpenToken,
+    pub leading_whitespace: Option<WhitespaceToken>,
+    pub mustache_item: MustacheItem,
+    pub trailing_whitespace: Option<WhitespaceToken>,
+    pub mustache_close: Option<MustacheCloseToken>,
+    pub span: Span,
+}
 #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
 #[serde(untagged)]
 pub enum MustacheItem {
-    IfBlockOpen(IfBlockOpen),
-    EachBlockOpen(EachBlockOpen),
-    KeyBlockOpen(KeyBlockOpen),
+    BlockOpen(BlockOpen),
     BlockClose(BlockClose),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
@@ -86,33 +70,13 @@ pub enum MustacheItem {
     Expression(Box<swc_ecma_ast::Expr>),
     InvalidSyntax(InvalidSyntax),
 }
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("IfBlockOpen")]
-pub struct IfBlockOpen {
-    pub if_open: IfOpenToken,
-    pub whitespace: WhitespaceToken,
-    pub expression: Box<swc_ecma_ast::Expr>,
-    pub span: Span,
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("EachBlockOpen")]
-pub struct EachBlockOpen {
-    pub each_open: EachOpenToken,
-    pub whitespace: WhitespaceToken,
-    pub expression: Box<swc_ecma_ast::Expr>,
-    pub as_: EachAs,
-    pub context: swc_ecma_ast::Pat,
-    pub index: Option<EachIndex>,
-    pub key: Option<EachKey>,
-    pub span: Span,
-}
-#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
-#[ast_serde("KeyBlockOpen")]
-pub struct KeyBlockOpen {
-    pub key_open: KeyOpenToken,
-    pub whitespace: WhitespaceToken,
-    pub expression: Box<swc_ecma_ast::Expr>,
-    pub span: Span,
+#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
+#[serde(untagged)]
+pub enum BlockOpen {
+    IfBlockOpen(IfBlockOpen),
+    EachBlockOpen(EachBlockOpen),
+    KeyBlockOpen(KeyBlockOpen),
+    Unknown(InvalidSyntax),
 }
 #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
 #[serde(untagged)]
@@ -143,6 +107,34 @@ pub struct DebugTag {
 #[ast_serde("ConstTag")]
 pub struct ConstTag {
     pub const_tag: ConstTagToken,
+    pub whitespace: WhitespaceToken,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("IfBlockOpen")]
+pub struct IfBlockOpen {
+    pub if_open: IfOpenToken,
+    pub whitespace: WhitespaceToken,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachBlockOpen")]
+pub struct EachBlockOpen {
+    pub each_open: EachOpenToken,
+    pub whitespace: WhitespaceToken,
+    pub expression: Box<swc_ecma_ast::Expr>,
+    pub as_: EachAs,
+    pub context: swc_ecma_ast::Pat,
+    pub index: Option<EachIndex>,
+    pub key: Option<EachKey>,
+    pub span: Span,
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("KeyBlockOpen")]
+pub struct KeyBlockOpen {
+    pub key_open: KeyOpenToken,
     pub whitespace: WhitespaceToken,
     pub expression: Box<swc_ecma_ast::Expr>,
     pub span: Span,

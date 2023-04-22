@@ -5,7 +5,8 @@ use svelters::{
     parser::{new_span, Parser},
     syntax_nodes::{
         BlockClose, Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex,
-        EachKey, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
+        EachKey, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
@@ -317,11 +318,13 @@ fn invalid_block_open() {
             span: new_span(0, 1),
         },
         leading_whitespace: None,
-        mustache_item: InvalidSyntax {
-            text: "#foo".into(),
-            span: new_span(1, 5),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            InvalidSyntax {
+                text: "#foo".into(),
+                span: new_span(1, 5),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(MustacheCloseToken {
             span: new_span(5, 6),
@@ -348,17 +351,19 @@ fn key_block_open() {
             span: new_span(0, 1),
         },
         leading_whitespace: None,
-        mustache_item: KeyBlockOpen {
-            key_open: KeyOpenToken {
-                span: new_span(1, 5),
-            },
-            whitespace: WhitespaceToken {
-                span: new_span(5, 6),
-            },
-            expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(6, 11)))),
-            span: new_span(1, 11),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            KeyBlockOpen {
+                key_open: KeyOpenToken {
+                    span: new_span(1, 5),
+                },
+                whitespace: WhitespaceToken {
+                    span: new_span(5, 6),
+                },
+                expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(6, 11)))),
+                span: new_span(1, 11),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(MustacheCloseToken {
             span: new_span(11, 12),
@@ -379,17 +384,19 @@ fn if_block_open() {
             span: new_span(0, 1),
         },
         leading_whitespace: None,
-        mustache_item: IfBlockOpen {
-            if_open: IfOpenToken {
-                span: new_span(1, 4),
-            },
-            whitespace: WhitespaceToken {
-                span: new_span(4, 5),
-            },
-            expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(5, 10)))),
-            span: new_span(1, 10),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            IfBlockOpen {
+                if_open: IfOpenToken {
+                    span: new_span(1, 4),
+                },
+                whitespace: WhitespaceToken {
+                    span: new_span(4, 5),
+                },
+                expression: Box::new(Expr::Ident(Ident::new("hello".into(), new_span(5, 10)))),
+                span: new_span(1, 10),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(MustacheCloseToken {
             span: new_span(10, 11),
@@ -408,22 +415,24 @@ fn each_block_open() {
     let expected_node = Mustache {
         mustache_open: new_span(0, 1).into(),
         leading_whitespace: None,
-        mustache_item: EachBlockOpen {
-            each_open: new_span(1, 6).into(),
-            whitespace: new_span(6, 7).into(),
-            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
-            as_: EachAs {
-                leading_ws: new_span(12, 13).into(),
-                as_: new_span(13, 15).into(),
-                trailing_ws: new_span(15, 16).into(),
-                span: new_span(12, 16),
-            },
-            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
-            index: None,
-            key: None,
-            span: new_span(1, 20),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
+                index: None,
+                key: None,
+                span: new_span(1, 20),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(new_span(20, 21).into()),
         span: new_span(0, 21),
@@ -440,28 +449,30 @@ fn each_block_open_index() {
     let expected_node = Mustache {
         mustache_open: new_span(0, 1).into(),
         leading_whitespace: None,
-        mustache_item: EachBlockOpen {
-            each_open: new_span(1, 6).into(),
-            whitespace: new_span(6, 7).into(),
-            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
-            as_: EachAs {
-                leading_ws: new_span(12, 13).into(),
-                as_: new_span(13, 15).into(),
-                trailing_ws: new_span(15, 16).into(),
-                span: new_span(12, 16),
-            },
-            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
-            index: Some(EachIndex {
-                trailing_ws: None,
-                comma: new_span(20, 21).into(),
-                whitespace: Some(new_span(21, 22).into()),
-                identifier: Ident::new("$i".into(), new_span(22, 24)),
-                span: new_span(20, 24),
-            }),
-            key: None,
-            span: new_span(1, 24),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
+                index: Some(EachIndex {
+                    trailing_ws: None,
+                    comma: new_span(20, 21).into(),
+                    whitespace: Some(new_span(21, 22).into()),
+                    identifier: Ident::new("$i".into(), new_span(22, 24)),
+                    span: new_span(20, 24),
+                }),
+                key: None,
+                span: new_span(1, 24),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(new_span(24, 25).into()),
         span: new_span(0, 25),
@@ -478,34 +489,36 @@ fn each_block_open_keyed() {
     let expected_node = Mustache {
         mustache_open: new_span(0, 1).into(),
         leading_whitespace: None,
-        mustache_item: EachBlockOpen {
-            each_open: new_span(1, 6).into(),
-            whitespace: new_span(6, 7).into(),
-            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
-            as_: EachAs {
-                leading_ws: new_span(12, 13).into(),
-                as_: new_span(13, 15).into(),
-                trailing_ws: new_span(15, 16).into(),
-                span: new_span(12, 16),
-            },
-            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
-            index: None,
-            key: Some(EachKey {
-                whitespace: Some(new_span(20, 21).into()),
-                paren_open: new_span(21, 22).into(),
-                leading_ws: None,
-                expression: Box::new(Expr::Member(MemberExpr {
-                    span: new_span(22, 29),
-                    obj: Box::new(Ident::new("item".into(), new_span(22, 26)).into()),
-                    prop: Ident::new("id".into(), new_span(27, 29)).into(),
-                })),
-                trailing_ws: None,
-                paren_close: new_span(29, 30).into(),
-                span: new_span(20, 30),
-            }),
-            span: new_span(1, 30),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
+                index: None,
+                key: Some(EachKey {
+                    whitespace: Some(new_span(20, 21).into()),
+                    paren_open: new_span(21, 22).into(),
+                    leading_ws: None,
+                    expression: Box::new(Expr::Member(MemberExpr {
+                        span: new_span(22, 29),
+                        obj: Box::new(Ident::new("item".into(), new_span(22, 26)).into()),
+                        prop: Ident::new("id".into(), new_span(27, 29)).into(),
+                    })),
+                    trailing_ws: None,
+                    paren_close: new_span(29, 30).into(),
+                    span: new_span(20, 30),
+                }),
+                span: new_span(1, 30),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(new_span(30, 31).into()),
         span: new_span(0, 31),
@@ -522,36 +535,38 @@ fn each_block_open_index_keyed() {
     let expected_node = Mustache {
         mustache_open: new_span(0, 1).into(),
         leading_whitespace: None,
-        mustache_item: EachBlockOpen {
-            each_open: new_span(1, 6).into(),
-            whitespace: new_span(6, 7).into(),
-            expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
-            as_: EachAs {
-                leading_ws: new_span(12, 13).into(),
-                as_: new_span(13, 15).into(),
-                trailing_ws: new_span(15, 16).into(),
-                span: new_span(12, 16),
-            },
-            context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
-            index: Some(EachIndex {
-                trailing_ws: None,
-                comma: new_span(20, 21).into(),
-                whitespace: Some(new_span(21, 22).into()),
-                identifier: Ident::new("i".into(), new_span(22, 23)),
-                span: new_span(20, 23),
-            }),
-            key: Some(EachKey {
-                whitespace: Some(new_span(23, 24).into()),
-                paren_open: new_span(24, 25).into(),
-                leading_ws: None,
-                expression: Box::new(Ident::new("i".into(), new_span(25, 26)).into()),
-                trailing_ws: None,
-                paren_close: new_span(26, 27).into(),
-                span: new_span(23, 27),
-            }),
-            span: new_span(1, 27),
-        }
-        .into(),
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Expr::Ident(Ident::new("items".into(), new_span(7, 12)))),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: Pat::Ident(Ident::new("item".into(), new_span(16, 20)).into()),
+                index: Some(EachIndex {
+                    trailing_ws: None,
+                    comma: new_span(20, 21).into(),
+                    whitespace: Some(new_span(21, 22).into()),
+                    identifier: Ident::new("i".into(), new_span(22, 23)),
+                    span: new_span(20, 23),
+                }),
+                key: Some(EachKey {
+                    whitespace: Some(new_span(23, 24).into()),
+                    paren_open: new_span(24, 25).into(),
+                    leading_ws: None,
+                    expression: Box::new(Ident::new("i".into(), new_span(25, 26)).into()),
+                    trailing_ws: None,
+                    paren_close: new_span(26, 27).into(),
+                    span: new_span(23, 27),
+                }),
+                span: new_span(1, 27),
+            }
+            .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(new_span(27, 28).into()),
         span: new_span(0, 28),
@@ -568,33 +583,35 @@ fn each_block_destructure() {
     let expected_node = Mustache {
         mustache_open: new_span(0, 1).into(),
         leading_whitespace: None,
-        mustache_item: EachBlockOpen {
-            each_open: new_span(1, 6).into(),
-            whitespace: new_span(6, 7).into(),
-            expression: Box::new(Ident::new("items".into(), new_span(7, 12)).into()),
-            as_: EachAs {
-                leading_ws: new_span(12, 13).into(),
-                as_: new_span(13, 15).into(),
-                trailing_ws: new_span(15, 16).into(),
-                span: new_span(12, 16),
-            },
-            context: ObjectPat {
-                span: new_span(16, 22),
-                props: vec![AssignPatProp {
-                    span: new_span(18, 20),
-                    key: Ident::new("id".into(), new_span(18, 20)),
-                    value: None,
+        mustache_item: MustacheItem::BlockOpen(
+            EachBlockOpen {
+                each_open: new_span(1, 6).into(),
+                whitespace: new_span(6, 7).into(),
+                expression: Box::new(Ident::new("items".into(), new_span(7, 12)).into()),
+                as_: EachAs {
+                    leading_ws: new_span(12, 13).into(),
+                    as_: new_span(13, 15).into(),
+                    trailing_ws: new_span(15, 16).into(),
+                    span: new_span(12, 16),
+                },
+                context: ObjectPat {
+                    span: new_span(16, 22),
+                    props: vec![AssignPatProp {
+                        span: new_span(18, 20),
+                        key: Ident::new("id".into(), new_span(18, 20)),
+                        value: None,
+                    }
+                    .into()],
+                    optional: false,
+                    type_ann: None,
                 }
-                .into()],
-                optional: false,
-                type_ann: None,
+                .into(),
+                index: None,
+                key: None,
+                span: new_span(1, 22),
             }
             .into(),
-            index: None,
-            key: None,
-            span: new_span(1, 22),
-        }
-        .into(),
+        ),
         trailing_whitespace: None,
         mustache_close: Some(new_span(22, 23).into()),
         span: new_span(0, 23),

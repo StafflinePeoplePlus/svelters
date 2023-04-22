@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        BlockClose, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, IfBlockOpen,
-        InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        BlockClose, BlockOpen, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey,
+        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -31,7 +31,7 @@ impl StateTransition for MustacheState {
         let mustache_item = if let Some(span) = parser.eat_char('/') {
             self.parse_block_close_tag(parser, span).into()
         } else if let Some(span) = parser.eat_char('#') {
-            self.parse_block_open_tag(parser, span)
+            self.parse_block_open_tag(parser, span).into()
         } else if let Some(span) = parser.eat_chars("@html") {
             self.parse_raw_mustache_tag(parser, HtmlTagToken { span })
         } else if let Some(span) = parser.eat_chars("@debug") {
@@ -192,7 +192,7 @@ impl MustacheState {
         .into()
     }
 
-    fn parse_block_open_tag(self, parser: &mut Parser<'_>, hash_span: Span) -> MustacheItem {
+    fn parse_block_open_tag(self, parser: &mut Parser<'_>, hash_span: Span) -> BlockOpen {
         if let Some(span) = parser.eat_chars("if") {
             let span = span.with_lo(hash_span.lo());
             let whitespace = parser
@@ -260,7 +260,9 @@ impl MustacheState {
             }
             .into()
         } else {
-            let span = parser.eat_until_chars("}").with_lo(hash_span.lo());
+            let span = parser
+                .eat_until(|c| *c == '}' || c.is_ascii_whitespace())
+                .with_lo(hash_span.lo());
             parser.error_with_span(ParseErrorKind::UnexpectedBlockType, span);
             InvalidSyntax {
                 text: parser.text_span(&span).to_string(),
