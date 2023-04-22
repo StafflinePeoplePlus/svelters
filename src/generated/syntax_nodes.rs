@@ -16,6 +16,7 @@ pub enum Node {
     IfBlockOpen(IfBlockOpen),
     EachBlockOpen(EachBlockOpen),
     KeyBlockOpen(KeyBlockOpen),
+    BlockClose(BlockClose),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
@@ -78,6 +79,7 @@ pub enum MustacheItem {
     IfBlockOpen(IfBlockOpen),
     EachBlockOpen(EachBlockOpen),
     KeyBlockOpen(KeyBlockOpen),
+    BlockClose(BlockClose),
     RawMustacheTag(RawMustacheTag),
     DebugTag(DebugTag),
     ConstTag(ConstTag),
@@ -111,6 +113,15 @@ pub struct KeyBlockOpen {
     pub whitespace: WhitespaceToken,
     pub expression: Box<swc_ecma_ast::Expr>,
     pub span: Span,
+}
+#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
+#[serde(untagged)]
+pub enum BlockClose {
+    IfClose(IfCloseToken),
+    EachClose(EachCloseToken),
+    AwaitClose(AwaitCloseToken),
+    KeyClose(KeyCloseToken),
+    Unknown(InvalidSyntax),
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
 #[ast_serde("RawMustacheTag")]

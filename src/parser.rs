@@ -44,6 +44,14 @@ impl<'a> Parser<'a> {
         peek
     }
 
+    pub(crate) fn peek_until<P>(&mut self, pred: P) -> Span
+    where
+        P: FnMut(&char) -> bool,
+    {
+        let (start, end) = self.muncher.peek_until_count(pred);
+        new_span(start, end)
+    }
+
     pub(crate) fn push_node(&mut self, node: impl Into<Node>) {
         self.nodes.push(node.into())
     }
@@ -94,6 +102,10 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+    }
+
+    pub(crate) fn eat_to_span_hi(&mut self, span: &Span) {
+        self.eat_to(span.hi.0 as usize)
     }
 
     pub(crate) fn allow_whitespace(&mut self) -> Option<WhitespaceToken> {

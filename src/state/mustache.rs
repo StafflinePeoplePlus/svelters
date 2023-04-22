@@ -3,8 +3,8 @@ use crate::{
     error::ParseErrorKind,
     parser::Parser,
     syntax_nodes::{
-        ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, IfBlockOpen, InvalidSyntax,
-        KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        BlockClose, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey, IfBlockOpen,
+        InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -28,7 +28,9 @@ impl StateTransition for MustacheState {
         };
         let leading_whitespace = parser.allow_whitespace();
 
-        let mustache_item = if let Some(span) = parser.eat_char('#') {
+        let mustache_item = if let Some(span) = parser.eat_char('/') {
+            self.parse_block_close_tag(parser, span).into()
+        } else if let Some(span) = parser.eat_char('#') {
             self.parse_block_open_tag(parser, span)
         } else if let Some(span) = parser.eat_chars("@html") {
             self.parse_raw_mustache_tag(parser, HtmlTagToken { span })
@@ -317,5 +319,39 @@ impl MustacheState {
             .eat_until(|c| !Ident::is_valid_continue(*c))
             .with_lo(BytePos(start as u32));
         Ident::new(parser.text_span(&span).into(), span)
+    }
+
+    fn parse_block_close_tag(self, parser: &mut Parser<'_>, slash_span: Span) -> BlockClose {
+        let close_name_span = parser.peek_until(|c| *c == '}' || c.is_ascii_whitespace());
+        let close_name = parser.text_span(&close_name_span);
+
+        match close_name {
+            "if" => {
+                parser.eat_to_span_hi(&close_name_span);
+                BlockClose::IfClose(slash_span.with_hi(close_name_span.hi).into())
+            }
+            "key" => {
+                parser.eat_to_span_hi(&close_name_span);
+                BlockClose::KeyClose(slash_span.with_hi(close_name_span.hi).into())
+            }
+            "each" => {
+                parser.eat_to_span_hi(&close_name_span);
+                BlockClose::EachClose(slash_span.with_hi(close_name_span.hi).into())
+            }
+            "await" => {
+                parser.eat_to_span_hi(&close_name_span);
+                BlockClose::AwaitClose(slash_span.with_hi(close_name_span.hi).into())
+            }
+            _ => {
+                let span = close_name_span.with_lo(slash_span.lo);
+                parser.eat_to_span_hi(&close_name_span);
+                parser.error_with_span(ParseErrorKind::UnknownBlockClose, close_name_span);
+                InvalidSyntax {
+                    text: parser.text_span(&span).into(),
+                    span,
+                }
+                .into()
+            }
+        }
     }
 }

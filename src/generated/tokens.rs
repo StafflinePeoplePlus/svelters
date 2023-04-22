@@ -119,3 +119,35 @@ pub struct ParenCloseToken {
 impl From<Span> for ParenCloseToken {
     fn from(span: Span) -> Self { Self { span } }
 }
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("IfCloseToken")]
+pub struct IfCloseToken {
+    pub span: Span,
+}
+impl From<Span> for IfCloseToken {
+    fn from(span: Span) -> Self { Self { span } }
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("EachCloseToken")]
+pub struct EachCloseToken {
+    pub span: Span,
+}
+impl From<Span> for EachCloseToken {
+    fn from(span: Span) -> Self { Self { span } }
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("AwaitCloseToken")]
+pub struct AwaitCloseToken {
+    pub span: Span,
+}
+impl From<Span> for AwaitCloseToken {
+    fn from(span: Span) -> Self { Self { span } }
+}
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde("KeyCloseToken")]
+pub struct KeyCloseToken {
+    pub span: Span,
+}
+impl From<Span> for KeyCloseToken {
+    fn from(span: Span) -> Self { Self { span } }
+}

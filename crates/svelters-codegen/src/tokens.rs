@@ -13,6 +13,10 @@ pub const TOKEN_NAMES: &[(&str, &str)] = &[
     ("#key", "KeyOpen"),
     ("#if", "IfOpen"),
     ("#each", "EachOpen"),
+    ("/key", "KeyClose"),
+    ("/if", "IfClose"),
+    ("/each", "EachClose"),
+    ("/await", "AwaitClose"),
     ("as", "As"),
 ];
 pub const TOKEN_TYPES: &[(&str, &str)] = &[

@@ -4,8 +4,8 @@ use svelters::{
     error::{CollectingErrorReporter, ParseError, ParseErrorKind},
     parser::{new_span, Parser},
     syntax_nodes::{
-        Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey,
-        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
+        BlockClose, Comment, CommentText, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex,
+        EachKey, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, RawMustacheTag, Text,
     },
     tokens::{
         CommentEndToken, CommentStartToken, ConstTagToken, DebugTagToken, HtmlTagToken,
@@ -602,4 +602,99 @@ fn each_block_destructure() {
 
     assert_eq!(nodes, vec![expected_node.into()]);
     assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn key_close() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{/key}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: BlockClose::KeyClose(new_span(1, 5).into()).into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(5, 6).into()),
+        span: new_span(0, 6),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn if_close() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{/if}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: BlockClose::IfClose(new_span(1, 4).into()).into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(4, 5).into()),
+        span: new_span(0, 5),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn await_close() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{/await}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: BlockClose::AwaitClose(new_span(1, 7).into()).into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(7, 8).into()),
+        span: new_span(0, 8),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn each_close() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{/each}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: BlockClose::EachClose(new_span(1, 6).into()).into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(6, 7).into()),
+        span: new_span(0, 7),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert!(error_reporter.is_empty())
+}
+
+#[test]
+fn unknown_close() {
+    let mut error_reporter = CollectingErrorReporter::new();
+    let nodes = Parser::new("{/keys}", &mut error_reporter).parse();
+    let expected_node = Mustache {
+        mustache_open: new_span(0, 1).into(),
+        leading_whitespace: None,
+        mustache_item: BlockClose::Unknown(InvalidSyntax {
+            text: "/keys".into(),
+            span: new_span(1, 6),
+        })
+        .into(),
+        trailing_whitespace: None,
+        mustache_close: Some(new_span(6, 7).into()),
+        span: new_span(0, 7),
+    };
+
+    assert_eq!(nodes, vec![expected_node.into()]);
+    assert_eq!(
+        error_reporter.parse_errors(),
+        &[ParseError::new(
+            ParseErrorKind::UnknownBlockClose,
+            new_span(2, 6)
+        )]
+    );
 }

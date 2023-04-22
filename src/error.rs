@@ -28,6 +28,9 @@ pub enum ParseErrorKind {
     /// One or more expressions given to `{@debug ...}` was not an identifier
     InvalidDebugArgs,
 
+    /// Close block of an unknown type
+    UnknownBlockClose,
+
     /// Unexpected block type
     UnexpectedBlockType,
 }
