@@ -8,11 +8,11 @@ members = [
 name = "svelters"
 version = "0.0.1"
 edition = "2021"
-authors = ["James Birtles <james@birtles.dev>"]
+authors = ["James Birtles <james.birtles@peopleplus.co.uk>"]
 description = "Svelte parser written in Rust with error recovery and handling in mind"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/jamesbirtles/svelters"
+repository = "https://github.com/StafflinePeoplePlus/svelters"
 keywords = ["svelte", "compiler"]
 categories = ["parser-implementations"]
 
