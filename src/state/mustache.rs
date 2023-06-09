@@ -4,7 +4,8 @@ use crate::{
     parser::Parser,
     syntax_nodes::{
         BlockClose, BlockOpen, ConstTag, DebugTag, EachAs, EachBlockOpen, EachIndex, EachKey,
-        IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem, RawMustacheTag,
+        EcmaExpression, IfBlockOpen, InvalidSyntax, KeyBlockOpen, Mustache, MustacheItem,
+        RawMustacheTag,
     },
     tokens::{
         ConstTagToken, DebugTagToken, HtmlTagToken, IfOpenToken, KeyOpenToken, MustacheCloseToken,
@@ -65,7 +66,7 @@ impl StateTransition for MustacheState {
 }
 
 impl MustacheState {
-    fn parse_js_expression(&self, parser: &mut Parser<'_>) -> Box<Expr> {
+    fn parse_ecma_expression(&self, parser: &mut Parser<'_>) -> EcmaExpression {
         let source = parser.text();
         let mut ecma_parser = swc_ecma_parser::Parser::new_from(Lexer::new(
             Syntax::Es(EsConfig::default()),
@@ -80,7 +81,10 @@ impl MustacheState {
 
         let expression = ecma_parser.parse_expr().unwrap();
         parser.eat_to(expression.span_hi().0 as usize);
-        expression
+        EcmaExpression {
+            span: expression.span(),
+            expression,
+        }
     }
 
     fn parse_js_pattern(&self, parser: &mut Parser) -> Pat {
@@ -102,24 +106,25 @@ impl MustacheState {
     }
 
     fn parse_mustache_tag(self, parser: &mut Parser<'_>) -> MustacheItem {
-        self.parse_js_expression(parser).into()
+        self.parse_ecma_expression(parser).into()
     }
 
     fn parse_const_tag(self, parser: &mut Parser<'_>, const_tag: ConstTagToken) -> MustacheItem {
         let whitespace = parser
             .require_whitespace(ParseErrorKind::MissingWhitespaceAfterConstTag)
             .unwrap();
-        let expression = self.parse_js_expression(parser);
+        let ecma_expression = self.parse_ecma_expression(parser);
 
-        if !matches!(&*expression, Expr::Assign(expr) if expr.op == AssignOp::Assign) {
-            parser.error_with_span(ParseErrorKind::InvalidConstArgs, expression.span());
+        if !matches!(&*ecma_expression.expression, Expr::Assign(expr) if expr.op == AssignOp::Assign)
+        {
+            parser.error_with_span(ParseErrorKind::InvalidConstArgs, ecma_expression.span());
         }
 
-        let span = const_tag.span().with_hi(expression.span_hi());
+        let span = const_tag.span().with_hi(ecma_expression.span_hi());
         ConstTag {
             const_tag,
             whitespace,
-            expression,
+            ecma_expression,
             span,
         }
         .into()
@@ -147,18 +152,28 @@ impl MustacheState {
             }
             .into()
         } else {
-            let expression = self.parse_js_expression(parser);
-            let span = debug_tag.span().with_hi(expression.span_hi());
+            let ecma_expression = self.parse_ecma_expression(parser);
+            let span = debug_tag.span().with_hi(ecma_expression.span_hi());
 
             // We don't match here as we don't want to have to rebox the expression if its just one
-            let identifiers = if expression.is_seq() {
-                expression.expect_seq().exprs
+            let identifiers = if ecma_expression.expression.is_seq() {
+                ecma_expression
+                    .expression
+                    .expect_seq()
+                    .exprs
+                    .into_iter()
+                    .map(|expression| EcmaExpression {
+                        span: expression.span(),
+                        expression,
+                    })
+                    .collect()
             } else {
-                vec![expression]
+                vec![ecma_expression]
             };
-            for expression in &identifiers {
-                if !matches!(&**expression, Expr::Ident(..)) {
-                    parser.error_with_span(ParseErrorKind::InvalidDebugArgs, expression.span());
+            for ecma_expression in &identifiers {
+                if !matches!(&*ecma_expression.expression, Expr::Ident(..)) {
+                    parser
+                        .error_with_span(ParseErrorKind::InvalidDebugArgs, ecma_expression.span());
                 }
             }
 
@@ -180,13 +195,13 @@ impl MustacheState {
         let whitespace = parser
             .require_whitespace(ParseErrorKind::MissingWhitespaceAfterHtmlTag)
             .unwrap();
-        let expression = self.parse_js_expression(parser);
+        let ecma_expression = self.parse_ecma_expression(parser);
 
-        let span = html_tag.span().with_hi(expression.span_hi());
+        let span = html_tag.span().with_hi(ecma_expression.span_hi());
         RawMustacheTag {
             html_tag,
             whitespace,
-            expression,
+            ecma_expression,
             span,
         }
         .into()
@@ -198,12 +213,12 @@ impl MustacheState {
             let whitespace = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
-            let expression = self.parse_js_expression(parser);
+            let ecma_expression = self.parse_ecma_expression(parser);
             IfBlockOpen {
                 if_open: IfOpenToken { span },
                 whitespace,
-                span: span.with_hi(expression.span_hi()),
-                expression,
+                span: span.with_hi(ecma_expression.span_hi()),
+                ecma_expression,
             }
             .into()
         } else if let Some(each_span) = parser.eat_chars("each") {
@@ -212,7 +227,7 @@ impl MustacheState {
             let whitespace = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
-            let expression = self.parse_js_expression(parser);
+            let ecma_expression = self.parse_ecma_expression(parser);
             let as_leading_ws = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceBeforeAs)
                 .unwrap();
@@ -231,7 +246,7 @@ impl MustacheState {
             EachBlockOpen {
                 each_open: each_span.into(),
                 whitespace,
-                expression,
+                ecma_expression,
                 as_: EachAs {
                     span: as_leading_ws.span().with_hi(as_trailing_ws.span_hi()),
                     leading_ws: as_leading_ws,
@@ -251,12 +266,12 @@ impl MustacheState {
             let whitespace = parser
                 .require_whitespace(ParseErrorKind::MissingWhitespaceAfterBlockOpen)
                 .unwrap();
-            let expression = self.parse_js_expression(parser);
+            let ecma_expression = self.parse_ecma_expression(parser);
             KeyBlockOpen {
                 key_open: KeyOpenToken { span },
                 whitespace,
-                span: span.with_hi(expression.span_hi()),
-                expression,
+                span: span.with_hi(ecma_expression.span_hi()),
+                ecma_expression,
             }
             .into()
         } else {
@@ -299,7 +314,7 @@ impl MustacheState {
         let whitespace = parser.allow_whitespace();
         let paren_open = parser.eat_char('(')?.into();
         let leading_ws = parser.allow_whitespace();
-        let expression = self.parse_js_expression(parser);
+        let ecma_expression = self.parse_ecma_expression(parser);
         let trailing_ws = parser.allow_whitespace();
         let paren_close = parser.eat_char(')').unwrap().into();
 
@@ -307,7 +322,7 @@ impl MustacheState {
             whitespace,
             paren_open,
             leading_ws,
-            expression,
+            ecma_expression,
             trailing_ws,
             paren_close,
             span: parser.span_from(start),

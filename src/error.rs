@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use swc_common::{Span, Spanned};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParseErrorKind {
     MustacheNotClosed,
 
@@ -38,7 +39,7 @@ pub enum ParseErrorKind {
     ExpectedEachIndex,
 }
 
-#[derive(Debug, Clone, Copy, Spanned, PartialEq)]
+#[derive(Debug, Clone, Copy, Spanned, PartialEq, Serialize, Deserialize)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub span: Span,

@@ -12,6 +12,8 @@ Comment =
 CommentText =
   'text'
 
+EcmaExpression = 'expression'
+
 Mustache =
   '{'
   leading_whitespace: 'whitespace'?
@@ -25,23 +27,23 @@ MustacheItem =
 | RawMustacheTag
 | DebugTag
 | ConstTag
-| 'expression'
+| EcmaExpression
 | InvalidSyntax
 
 DebugTag =
   '@debug'
   'whitespace'?
-  identifier: 'expression'*
+  identifier: EcmaExpression*
 
 ConstTag =
   '@const'
   'whitespace'
-  'expression'
+  EcmaExpression
 
 RawMustacheTag =
   '@html'
   'whitespace'
-  'expression'
+  EcmaExpression
 
 BlockOpen =
   IfBlockOpen
@@ -52,17 +54,17 @@ BlockOpen =
 KeyBlockOpen =
   '#key'
   'whitespace'
-  'expression'
+  EcmaExpression
 
 IfBlockOpen =
   '#if'
   'whitespace'
-  'expression'
+  EcmaExpression
 
 EachBlockOpen =
   '#each'
   'whitespace'
-  'expression'
+  EcmaExpression
   as_: EachAs
   context: 'pattern'
   index: EachIndex?
@@ -83,7 +85,7 @@ EachKey =
   'whitespace'?
   '('
   leading_ws: 'whitespace'?
-  'expression'
+  EcmaExpression
   trailing_ws: 'whitespace'?
   ')'
 
