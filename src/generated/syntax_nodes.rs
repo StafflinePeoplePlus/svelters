@@ -2,25 +2,36 @@ use super::tokens::*;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use swc_common::{ast_serde, EqIgnoreSpan, Span, Spanned};
-#[derive(Debug, From, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq)]
-#[serde(untagged)]
+#[derive(Debug, From, Spanned, EqIgnoreSpan, PartialEq)]
+#[ast_serde]
 pub enum Node {
+    #[tag("Text")]
     Text(Text),
+    #[tag("InvalidSyntax")]
     InvalidSyntax(InvalidSyntax),
+    #[tag("Comment")]
     Comment(Comment),
+    #[tag("CommentText")]
     CommentText(CommentText),
+    #[tag("Mustache")]
     Mustache(Mustache),
-    MustacheItem(MustacheItem),
-    BlockOpen(BlockOpen),
-    BlockClose(BlockClose),
+    #[tag("RawMustacheTag")]
     RawMustacheTag(RawMustacheTag),
+    #[tag("DebugTag")]
     DebugTag(DebugTag),
+    #[tag("ConstTag")]
     ConstTag(ConstTag),
+    #[tag("IfBlockOpen")]
     IfBlockOpen(IfBlockOpen),
+    #[tag("EachBlockOpen")]
     EachBlockOpen(EachBlockOpen),
+    #[tag("KeyBlockOpen")]
     KeyBlockOpen(KeyBlockOpen),
+    #[tag("EachAs")]
     EachAs(EachAs),
+    #[tag("EachIndex")]
     EachIndex(EachIndex),
+    #[tag("EachKey")]
     EachKey(EachKey),
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]
@@ -59,7 +70,7 @@ pub struct Mustache {
     pub mustache_close: Option<MustacheCloseToken>,
     pub span: Span,
 }
-#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq, From, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MustacheItem {
     BlockOpen(BlockOpen),
@@ -70,21 +81,30 @@ pub enum MustacheItem {
     Expression(Box<swc_ecma_ast::Expr>),
     InvalidSyntax(InvalidSyntax),
 }
-#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
-#[serde(untagged)]
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq, From)]
+#[ast_serde]
 pub enum BlockOpen {
+    #[tag("IfBlockOpen")]
     IfBlockOpen(IfBlockOpen),
+    #[tag("EachBlockOpen")]
     EachBlockOpen(EachBlockOpen),
+    #[tag("KeyBlockOpen")]
     KeyBlockOpen(KeyBlockOpen),
+    #[tag("Unknown")]
     Unknown(InvalidSyntax),
 }
-#[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
-#[serde(untagged)]
+#[derive(Debug, Spanned, EqIgnoreSpan, PartialEq, From)]
+#[ast_serde]
 pub enum BlockClose {
+    #[tag("IfClose")]
     IfClose(IfCloseToken),
+    #[tag("EachClose")]
     EachClose(EachCloseToken),
+    #[tag("AwaitClose")]
     AwaitClose(AwaitCloseToken),
+    #[tag("KeyClose")]
     KeyClose(KeyCloseToken),
+    #[tag("Unknown")]
     Unknown(InvalidSyntax),
 }
 #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq)]

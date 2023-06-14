@@ -58,12 +58,25 @@ fn main() -> anyhow::Result<()> {
         };
 
         if is_enum {
-            let variants = fields.into_iter().map(|f| f.into_enum_variant());
-            quote! {
-                #[derive(Debug, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq, From)]
-                #[serde(untagged)]
-                pub enum #name_ident {
-                    #(#variants,)*
+            let num_alts = fields.iter().filter(|f| f.is_alt).count();
+            let variants = fields
+                .into_iter()
+                .map(|f| f.into_enum_variant(num_alts <= 1));
+            if num_alts > 1 {
+                quote! {
+                    #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq, From, Serialize, Deserialize)]
+                    #[serde(untagged)]
+                    pub enum #name_ident {
+                        #(#variants,)*
+                    }
+                }
+            } else {
+                quote! {
+                    #[derive(Debug, Spanned, EqIgnoreSpan, PartialEq, From)]
+                    #[ast_serde]
+                    pub enum #name_ident {
+                        #(#variants,)*
+                    }
                 }
             }
         } else {
@@ -78,13 +91,18 @@ fn main() -> anyhow::Result<()> {
             }
         }
     });
-    let node_variants = grammar.iter().map(|node_ref| {
+    let node_variants = grammar.iter().filter_map(|node_ref| {
         let node_data = &grammar[node_ref];
+        if matches!(node_data.rule, Rule::Alt(..)) {
+            return None;
+        }
+
         let name = &node_data.name;
         let ident = format_ident!("{name}");
-        quote! {
+        Some(quote! {
+            #[tag(#name)]
             #ident(#ident)
-        }
+        })
     });
 
     std::fs::write(
@@ -107,8 +125,8 @@ fn main() -> anyhow::Result<()> {
                 use derive_more::From;
                 use super::tokens::*;
 
-                #[derive(Debug, From, Spanned, Serialize, Deserialize, EqIgnoreSpan, PartialEq)]
-                #[serde(untagged)]
+                #[derive(Debug, From, Spanned, EqIgnoreSpan, PartialEq)]
+                #[ast_serde]
                 pub enum Node {
                     #(#node_variants,)*
                 }
@@ -181,6 +199,7 @@ fn get_token_field<'a>(grammar: &'a Grammar, t: &'a Token, meta: FieldMeta<'a>) 
             name: (*token_name).into(),
             type_str: (*token_type).into(),
             meta,
+            is_alt: false,
         },
         (_, Some((_, token_type_name))) => {
             let token_name = token_type_name.to_case(Case::Snake);
@@ -188,6 +207,7 @@ fn get_token_field<'a>(grammar: &'a Grammar, t: &'a Token, meta: FieldMeta<'a>) 
                 name: token_name.into(),
                 type_str: format!("{token_type_name}Token").into(),
                 meta,
+                is_alt: false,
             }
         }
         _ => panic!("unable to match token to type or name: {}", token_data.name),
@@ -201,6 +221,7 @@ fn get_node_field<'a>(grammar: &'a Grammar, n: &'a Node, meta: FieldMeta<'a>) ->
         name: node_name.into(),
         type_str: (&node_data.name).into(),
         meta,
+        is_alt: matches!(node_data.rule, Rule::Alt(..)),
     }
 }
 
@@ -220,6 +241,7 @@ struct Field<'a> {
     name: Cow<'a, str>,
     type_str: Cow<'a, str>,
     meta: FieldMeta<'a>,
+    is_alt: bool,
 }
 impl<'a> Field<'a> {
     fn into_struct_field(self) -> TokenStream {
@@ -230,11 +252,24 @@ impl<'a> Field<'a> {
         }
     }
 
-    fn into_enum_variant(self) -> TokenStream {
+    fn into_enum_variant(self, include_tag: bool) -> TokenStream {
         let enum_ident = self.meta.enum_variant_ident(&self.name);
+        let tag = if self.is_alt {
+            "*".to_string()
+        } else {
+            enum_ident.to_string()
+        };
         let field_type: Type = self.meta.parse_type(&self.type_str);
-        quote! {
-            #enum_ident(#field_type)
+
+        if include_tag {
+            quote! {
+                #[tag(#tag)]
+                #enum_ident(#field_type)
+            }
+        } else {
+            quote! {
+                #enum_ident(#field_type)
+            }
         }
     }
 }
