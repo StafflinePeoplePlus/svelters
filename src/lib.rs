@@ -1,12 +1,18 @@
-//! WIP svelte parser. Not ready for use yet.
-
-pub mod error;
-mod generated;
+pub mod ast;
+pub mod lexer;
 pub mod parser;
-mod state;
-pub use swc_ecma_ast as ecma;
+pub mod syntax;
 
-#[cfg(target_arch = "wasm32")]
-mod wasm;
+// use crate::{ast::Fragment, lexer::lex, parser::Parser};
+// use rowan::ast::AstNode;
+// fn main() {
+//     let source = include_str!("../source.svelte");
+//     let tokens = lex(source);
+//     println!("{tokens:#?}");
 
-pub use generated::*;
+//     let syntax = Parser::new(source, tokens).parse();
+//     println!("{syntax:#?}");
+
+//     let ast = Fragment::cast(syntax);
+//     println!("{ast:#?}");
+// }
